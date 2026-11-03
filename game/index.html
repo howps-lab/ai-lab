@@ -51,6 +51,28 @@
 </head>
 <body class="relative w-screen h-screen flex flex-col items-center justify-center bg-[#070913] text-gray-100">
 
+<!-- Pause Button (Top-Right of screen) -->
+<div class="absolute top-3 right-3 sm:top-5 sm:right-6 z-30 pointer-events-auto">
+  <button id="btn-pause" onclick="game.togglePause()" class="btn-touch px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-black/60 border border-gray-700/80 hover:border-cyan-400 text-gray-200 text-xs sm:text-sm font-bold cinzel flex items-center gap-1.5 backdrop-blur-sm shadow-lg active:scale-95 transition-all">
+    <span id="btn-pause-icon">⏸️</span>
+    <span class="hidden sm:inline">PAUSE</span>
+  </button>
+</div>
+
+<!-- Pause Modal Overlay -->
+<div id="pause-modal" class="absolute inset-0 bg-black/10 z-30 flex flex-col items-center justify-center hidden">
+  <h2 class="cinzel text-3xl sm:text-5xl font-black text-cyan-400 tracking-wider mb-2 drop-shadow-[0_0_20px_rgba(6,182,212,0.6)]">OATH PAUSED</h2>
+  <p class="text-gray-400 font-mono text-xs sm:text-sm mb-6 text-center max-w-xs">Take a breath, warrior. The battlefield awaits.</p>
+  <div class="flex flex-col gap-3 w-48 sm:w-56">
+    <button onclick="game.togglePause()" class="cinzel w-full py-2.5 rounded-lg bg-gradient-to-r from-cyan-800 to-blue-700 hover:from-cyan-700 hover:to-blue-600 text-white font-bold tracking-widest border border-cyan-400/40 shadow-lg active:scale-95 transition-all text-xs sm:text-sm">
+      RESUME [P]
+    </button>
+    <button onclick="game.restart()" class="cinzel w-full py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-gray-300 font-bold tracking-widest border border-gray-700 active:scale-95 transition-all text-xs sm:text-sm">
+      RESTART
+    </button>
+  </div>
+</div>
+
   <!-- Canvas Container -->
   <div id="game-container" class="relative w-full h-full flex items-center justify-center overflow-hidden">
     <canvas id="gameCanvas" class="w-full h-full block bg-black"></canvas>
@@ -124,7 +146,12 @@
         </button>
         <button id="btn-right" class="btn-touch w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gray-900/70 border border-gray-700/80 active:bg-cyan-950/70 text-gray-200 text-xl font-bold flex items-center justify-center backdrop-blur-sm shadow-xl active:scale-95">
           ?
-        </button>
+        </button>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+		
+		<!-- Pause Button (Sits just to the right of ▶) -->
+  <button id="btn-pause" onclick="game.togglePause()" class="btn-touch w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-black/70 border border-gray-700 hover:border-cyan-400 text-gray-200 text-sm font-bold cinzel flex items-center justify-center backdrop-blur-sm shadow-xl active:scale-95 mb-1">
+    <span id="btn-pause-icon">⏸️</span>
+  </button>
       </div>
 
       <!-- Action Cluster (Right Thumb) -->
@@ -176,7 +203,8 @@
     /* ==========================================================================
        SYNTHESIZED WEB AUDIO ENGINE (Procedural SFX - No external audio files)
        ========================================================================== */
-    const bgImage = new Image();
+	
+	const bgImage = new Image();
 		bgImage.src = "https://howps-lab.github.io/ai-lab/video-poster.jpg"; // Replace with your file path, URL, or Base64 string
 	
 	class SoundEngine {
@@ -1011,7 +1039,9 @@
        ========================================================================== */
     class GameEngine {
       constructor() {
-        this.canvas = document.getElementById('gameCanvas');
+        // In GameEngine constructor():
+		this.isPaused = false;
+		this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.width = window.innerWidth;
         this.height = window.innerHeight;
@@ -1078,7 +1108,13 @@
       }
 
       resetGame() {
-        this.player = new Player(this.width * 0.25, this.groundY);
+        // Inside resetGame():
+		this.isPaused = false;
+		document.getElementById('pause-modal').classList.add('hidden');
+		const pauseIcon = document.getElementById('btn-pause-icon');
+		if (pauseIcon) pauseIcon.textContent = '⏸️';
+		
+		this.player = new Player(this.width * 0.25, this.groundY);
         this.enemies = [];
         this.particles = [];
         this.slashArcs = [];
@@ -1094,6 +1130,25 @@
         this.spawnWave();
       }
 
+	togglePause() {
+  // Prevent pausing during Game Over or Victory screens
+  const gameOver = !document.getElementById('game-over-modal').classList.contains('hidden');
+  const victory = !document.getElementById('victory-modal').classList.contains('hidden');
+  if (gameOver || victory) return;
+
+  this.isPaused = !this.isPaused;
+  const modal = document.getElementById('pause-modal');
+  const pauseIcon = document.getElementById('btn-pause-icon');
+
+  if (this.isPaused) {
+    if (modal) modal.classList.remove('hidden');
+    if (pauseIcon) pauseIcon.textContent = '▶️';
+  } else {
+    if (modal) modal.classList.add('hidden');
+    if (pauseIcon) pauseIcon.textContent = '⏸️';
+  }
+}
+		
       restart() {
         this.resetGame();
       }
@@ -1232,6 +1287,7 @@
           if (e.code === 'KeyJ' || e.code === 'KeyZ') this.input.attack = true;
           if (e.code === 'KeyL' || e.code === 'KeyC') this.input.roll = true;
           if (e.code === 'Space') this.input.surge = true;
+		  if (e.code === 'KeyP' || e.code === 'Escape') {  this.togglePause();}
 
           // Quick Stance Selection 1-3
           if (e.code === 'Digit1') this.setStance('IRON');
@@ -1365,60 +1421,53 @@
 	}
 
       gameLoop() {
-        // Handle Hit-Stop
-        if (this.hitStopFrames > 0) {
-          this.hitStopFrames--;
-        } else {
-          // Physics & Logic Update
-          if (this.player && this.player.hp > 0) {
-            this.player.update(this.input, this.groundY, this.enemies, this);
-          }
-
-          this.enemies.forEach(e => e.update(this.player, this.groundY, this));
-          this.particles.forEach(p => p.update());
-          this.slashArcs.forEach(s => s.update());
-          this.damageTexts.forEach(d => d.update());
-
-          // Clean up dead particles
-          this.particles = this.particles.filter(p => p.life > 0);
-          this.slashArcs = this.slashArcs.filter(s => s.life > 0);
-          this.damageTexts = this.damageTexts.filter(d => d.life > 0);
-        }
-
-        // Screen Shake calculation
-        if (this.shakeIntensity > 0) {
-          this.shakeX = (Math.random() - 0.5) * this.shakeIntensity;
-          this.shakeY = (Math.random() - 0.5) * this.shakeIntensity;
-          this.shakeIntensity *= 0.88;
-          if (this.shakeIntensity < 0.3) this.shakeIntensity = 0;
-        } else {
-          this.shakeX = 0;
-          this.shakeY = 0;
-        }
-
-        // Rendering
-        this.ctx.save();
-        this.ctx.translate(this.shakeX, this.shakeY);
-
-        this.drawBackground();
-
-        // Draw Slash Arcs & VFX Behind Characters
-        this.slashArcs.forEach(s => s.draw(this.ctx));
-
-        // Draw Enemies & Player
-        this.enemies.forEach(e => e.draw(this.ctx));
-        if (this.player) this.player.draw(this.ctx);
-
-        // Draw Particles & Floating Damage Numbers on Top
-        this.particles.forEach(p => p.draw(this.ctx));
-        this.damageTexts.forEach(d => d.draw(this.ctx));
-
-        this.ctx.restore();
-
-        this.updateHUD();
-
-        requestAnimationFrame(() => this.gameLoop());
+  // Don't update physics, attacks, or timers while paused
+  if (!this.isPaused) {
+    if (this.hitStopFrames > 0) {
+      this.hitStopFrames--;
+    } else {
+      if (this.player && this.player.hp > 0) {
+        this.player.update(this.input, this.groundY, this.enemies, this);
       }
+
+      this.enemies.forEach(e => e.update(this.player, this.groundY, this));
+      this.particles.forEach(p => p.update());
+      this.slashArcs.forEach(s => s.update());
+      this.damageTexts.forEach(d => d.update());
+
+      this.particles = this.particles.filter(p => p.life > 0);
+      this.slashArcs = this.slashArcs.filter(s => s.life > 0);
+      this.damageTexts = this.damageTexts.filter(d => d.life > 0);
+    }
+
+    if (this.shakeIntensity > 0) {
+      this.shakeX = (Math.random() - 0.5) * this.shakeIntensity;
+      this.shakeY = (Math.random() - 0.5) * this.shakeIntensity;
+      this.shakeIntensity *= 0.88;
+      if (this.shakeIntensity < 0.3) this.shakeIntensity = 0;
+    } else {
+      this.shakeX = 0;
+      this.shakeY = 0;
+    }
+
+    this.updateHUD();
+  }
+
+  // Draw calls continue to render current frame stably behind the pause overlay
+  this.ctx.save();
+  this.ctx.translate(this.shakeX, this.shakeY);
+
+  this.drawBackground();
+  this.slashArcs.forEach(s => s.draw(this.ctx));
+  this.enemies.forEach(e => e.draw(this.ctx));
+  if (this.player) this.player.draw(this.ctx);
+  this.particles.forEach(p => p.draw(this.ctx));
+  this.damageTexts.forEach(d => d.draw(this.ctx));
+
+  this.ctx.restore();
+
+  requestAnimationFrame(() => this.gameLoop());
+}
     }
 
     // Initialize Game Engine on Window Load
