@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Oath: Blade of the Bound</title>
+  <title>Heaven's Oath</title>
+  <link rel="icon" type="image/x-icon" href="https://howps-lab.github.io/ai-lab/game/game-controller.png">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com">
 		
@@ -99,13 +100,13 @@
         <div class="flex flex-col items-end gap-1 pointer-events-auto">
           <span class="text-[10px] cinzel font-bold text-gray-400 tracking-wider hidden sm:block">VOW STANCE [1-3]</span>
           <div class="flex items-center gap-1.5 sm:gap-2">
-            <button id="stance-iron" onclick="game.setStance('IRON')" class="px-2 sm:px-2.5 py-1 rounded bg-slate-900/80 border border-slate-700 text-[10px] sm:text-xs font-bold cinzel text-slate-300 hover:border-slate-400 transition-all">
+            <button id="stance-iron" onClick="game.setStance('IRON')" class="px-2 sm:px-2.5 py-1 rounded bg-slate-900/80 border border-slate-700 text-[10px] sm:text-xs font-bold cinzel text-slate-300 hover:border-slate-400 transition-all">
               ??? IRON
             </button>
-            <button id="stance-fury" onclick="game.setStance('FURY')" class="px-2 sm:px-2.5 py-1 rounded bg-red-950/40 border border-red-900 text-[10px] sm:text-xs font-bold cinzel text-red-400 hover:border-red-500 transition-all">
+            <button id="stance-fury" onClick="game.setStance('FURY')" class="px-2 sm:px-2.5 py-1 rounded bg-red-950/40 border border-red-900 text-[10px] sm:text-xs font-bold cinzel text-red-400 hover:border-red-500 transition-all">
               ?? FURY
             </button>
-            <button id="stance-clarity" onclick="game.setStance('CLARITY')" class="px-2 sm:px-2.5 py-1 rounded bg-cyan-950/40 border border-cyan-900 text-[10px] sm:text-xs font-bold cinzel text-cyan-400 hover:border-cyan-500 transition-all">
+            <button id="stance-clarity" onClick="game.setStance('CLARITY')" class="px-2 sm:px-2.5 py-1 rounded bg-cyan-950/40 border border-cyan-900 text-[10px] sm:text-xs font-bold cinzel text-cyan-400 hover:border-cyan-500 transition-all">
               ??? CLARITY
             </button>
           </div>
@@ -151,7 +152,7 @@
     <div id="game-over-modal" class="absolute inset-0 bg-black/85 backdrop-blur-md z-30 flex flex-col items-center justify-center hidden">
       <h2 class="cinzel text-3xl sm:text-5xl font-black text-red-600 tracking-wider mb-2 drop-shadow-[0_0_20px_rgba(220,38,38,0.7)]">OATH BROKEN</h2>
       <p id="game-over-stats" class="text-gray-400 font-mono text-sm mb-6 text-center max-w-xs">You succumbed to the Ronin horde.</p>
-      <button onclick="game.restart()" class="cinzel px-8 py-3 rounded-lg bg-gradient-to-r from-red-800 to-amber-700 hover:from-red-700 hover:to-amber-600 text-white font-bold tracking-widest border border-amber-500/50 shadow-lg active:scale-95 transition-all">
+      <button onClick="game.restart()" class="cinzel px-8 py-3 rounded-lg bg-gradient-to-r from-red-800 to-amber-700 hover:from-red-700 hover:to-amber-600 text-white font-bold tracking-widest border border-amber-500/50 shadow-lg active:scale-95 transition-all">
         RESTORE VOW
       </button>
     </div>
@@ -160,7 +161,7 @@
     <div id="victory-modal" class="absolute inset-0 bg-black/85 backdrop-blur-md z-30 flex flex-col items-center justify-center hidden">
       <h2 class="cinzel text-3xl sm:text-5xl font-black text-cyan-400 tracking-wider mb-2 drop-shadow-[0_0_25px_rgba(6,182,212,0.8)]">VOW FULFILLED</h2>
       <p class="text-gray-300 font-mono text-sm mb-6 text-center max-w-sm">You cleansed all waves and held true to the sacred Oath.</p>
-      <button onclick="game.restart()" class="cinzel px-8 py-3 rounded-lg bg-gradient-to-r from-cyan-700 to-blue-600 hover:from-cyan-600 hover:to-blue-500 text-white font-bold tracking-widest border border-cyan-400/50 shadow-lg active:scale-95 transition-all">
+      <button onClick="game.restart()" class="cinzel px-8 py-3 rounded-lg bg-gradient-to-r from-cyan-700 to-blue-600 hover:from-cyan-600 hover:to-blue-500 text-white font-bold tracking-widest border border-cyan-400/50 shadow-lg active:scale-95 transition-all">
         FIGHT ANEW
       </button>
     </div>
