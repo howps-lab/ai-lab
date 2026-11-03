@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Oath: Blade of the Bound</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com">
+		
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      -webkit-touch-callout: none;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #05070c;
+      overflow: hidden;
+    }
+    .cinzel {
+      font-family: 'Cinzel', serif;
+    }
+    /* Touch Action button ripple & glow */
+    .btn-touch {
+      transition: transform 0.08s ease, filter 0.08s ease, background-color 0.1s ease;
+      touch-action: none;
+    }
+    .btn-touch:active {
+      transform: scale(0.92);
+      filter: brightness(1.3);
+    }
+    /* Glow animations */
+    .glow-cyan {
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+    }
+    .glow-gold {
+      box-shadow: 0 0 20px rgba(234, 179, 8, 0.6);
+    }
+    /* Custom scanline overlay for arcade combat feel */
+    .scanlines {
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="relative w-screen h-screen flex flex-col items-center justify-center bg-[#070913] text-gray-100">
+
+  <!-- Canvas Container -->
+  <div id="game-container" class="relative w-full h-full flex items-center justify-center overflow-hidden">
+    <canvas id="gameCanvas" class="w-full h-full block bg-black"></canvas>
+    
+    <!-- CRT Scanline / Vignette Layer -->
+    <div class="scanlines absolute inset-0 pointer-events-none z-10"></div>
+    <div class="absolute inset-0 pointer-events-none shadow-[inset_0_0_120px_rgba(0,0,0,0.85)] z-10"></div>
+
+    <!-- Top HUD Overlay -->
+    <div class="absolute top-0 left-0 right-0 p-3 md:p-6 flex flex-col gap-2 z-20 pointer-events-none">
+      <div class="flex items-start justify-between w-full max-w-6xl mx-auto">
+        <!-- Player Status Bars -->
+        <div class="flex flex-col gap-1.5 w-48 sm:w-64 md:w-80 pointer-events-auto">
+          <!-- HP Bar -->
+          <div class="flex items-center gap-2">
+            <span class="cinzel text-xs font-bold tracking-widest text-emerald-400 w-8">VIT</span>
+            <div class="relative w-full h-3.5 sm:h-4 bg-gray-900/90 rounded-sm overflow-hidden border border-emerald-900/60 shadow-inner">
+              <div id="hud-hp-fill" class="h-full bg-gradient-to-r from-emerald-600 to-teal-400 w-full transition-all duration-75"></div>
+            </div>
+            <span id="hud-hp-val" class="text-[10px] font-mono text-gray-300 w-12 text-right">100/100</span>
+          </div>
+
+          <!-- Oath Gauge (Super Meter) -->
+          <div class="flex items-center gap-2">
+            <span class="cinzel text-xs font-bold tracking-widest text-cyan-400 w-8">OATH</span>
+            <div class="relative w-full h-2.5 sm:h-3 bg-gray-900/90 rounded-sm overflow-hidden border border-cyan-950/80 shadow-inner">
+              <div id="hud-oath-fill" class="h-full bg-gradient-to-r from-cyan-600 via-sky-400 to-indigo-300 w-0 transition-all duration-75"></div>
+            </div>
+            <span id="hud-oath-val" class="text-[10px] font-mono text-cyan-300 w-12 text-right">0%</span>
+          </div>
+        </div>
+
+        <!-- Center Wave & Alert Indicator -->
+        <div class="flex flex-col items-center">
+          <div class="px-3 py-1 bg-black/60 backdrop-blur-md border border-gray-800 rounded-full flex items-center gap-2 shadow-lg">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            <span id="hud-wave" class="cinzel text-xs sm:text-sm font-extrabold tracking-wider text-gray-200">WAVE 1</span>
+          </div>
+          <!-- Dynamic Combo Display -->
+          <div id="hud-combo" class="opacity-0 transition-opacity duration-150 text-center mt-1">
+            <span id="hud-combo-count" class="cinzel text-2xl sm:text-3xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-400 to-red-500 drop-shadow-md">0</span>
+            <span class="cinzel text-xs sm:text-sm font-black tracking-widest text-amber-200 ml-1">HITS!</span>
+          </div>
+        </div>
+
+        <!-- Right Side: Oath Stance Switcher -->
+        <div class="flex flex-col items-end gap-1 pointer-events-auto">
+          <span class="text-[10px] cinzel font-bold text-gray-400 tracking-wider hidden sm:block">VOW STANCE [1-3]</span>
+          <div class="flex items-center gap-1.5 sm:gap-2">
+            <button id="stance-iron" onclick="game.setStance('IRON')" class="px-2 sm:px-2.5 py-1 rounded bg-slate-900/80 border border-slate-700 text-[10px] sm:text-xs font-bold cinzel text-slate-300 hover:border-slate-400 transition-all">
+              ??? IRON
+            </button>
+            <button id="stance-fury" onclick="game.setStance('FURY')" class="px-2 sm:px-2.5 py-1 rounded bg-red-950/40 border border-red-900 text-[10px] sm:text-xs font-bold cinzel text-red-400 hover:border-red-500 transition-all">
+              ?? FURY
+            </button>
+            <button id="stance-clarity" onclick="game.setStance('CLARITY')" class="px-2 sm:px-2.5 py-1 rounded bg-cyan-950/40 border border-cyan-900 text-[10px] sm:text-xs font-bold cinzel text-cyan-400 hover:border-cyan-500 transition-all">
+              ??? CLARITY
+            </button>
+          </div>
+          <span id="hud-stance-desc" class="text-[9px] text-gray-400 font-mono tracking-tight text-right hidden sm:block">Iron: -40% Dmg Taken</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- On-Screen Mobile Touch Controls (Always available, friendly on phones/tablets) -->
+    <div id="touch-controls" class="absolute bottom-40 left-0 right-0 px-4 sm:px-8 flex justify-between items-end z-20 pointer-events-none">
+      <!-- Movement D-Pad (Left Thumb) -->
+      <div class="flex gap-2 pointer-events-auto select-none">
+        <button id="btn-left" class="btn-touch w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gray-900/70 border border-gray-700/80 active:bg-cyan-950/70 text-gray-200 text-xl font-bold flex items-center justify-center backdrop-blur-sm shadow-xl active:scale-95">
+          ?
+        </button>
+        <button id="btn-right" class="btn-touch w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gray-900/70 border border-gray-700/80 active:bg-cyan-950/70 text-gray-200 text-xl font-bold flex items-center justify-center backdrop-blur-sm shadow-xl active:scale-95">
+          ?
+        </button>
+      </div>
+
+      <!-- Action Cluster (Right Thumb) -->
+      <div class="grid grid-cols-2 gap-2 sm:gap-2.5 pointer-events-auto select-none">
+        <!-- Roll / Dodge -->
+        <button id="btn-roll" class="btn-touch w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-900/80 border border-slate-600 text-slate-300 text-xs sm:text-sm font-bold cinzel flex items-center justify-center shadow-lg active:scale-95">
+          ROLL
+        </button>
+        <!-- Jump -->
+        <button id="btn-jump" class="btn-touch w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-900/80 border border-slate-600 text-slate-300 text-xs sm:text-sm font-bold cinzel flex items-center justify-center shadow-lg active:scale-95">
+          JUMP
+        </button>
+        <!-- Oath Surge (Super) -->
+        <button id="btn-surge" class="btn-touch w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-indigo-950/80 border border-indigo-500/70 text-indigo-300 text-[10px] sm:text-xs font-bold cinzel flex items-center justify-center shadow-lg active:scale-95">
+          SURGE
+        </button>
+        <!-- Attack (Primary) -->
+        <button id="btn-attack" class="btn-touch w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-950/90 border-2 border-red-500 text-red-200 text-sm sm:text-base font-black cinzel flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.3)] active:scale-90">
+          SLASH
+        </button>
+      </div>
+    </div>
+
+    <!-- Death / Game Over Modal -->
+    <div id="game-over-modal" class="absolute inset-0 bg-black/85 backdrop-blur-md z-30 flex flex-col items-center justify-center hidden">
+      <h2 class="cinzel text-3xl sm:text-5xl font-black text-red-600 tracking-wider mb-2 drop-shadow-[0_0_20px_rgba(220,38,38,0.7)]">OATH BROKEN</h2>
+      <p id="game-over-stats" class="text-gray-400 font-mono text-sm mb-6 text-center max-w-xs">You succumbed to the Ronin horde.</p>
+      <button onclick="game.restart()" class="cinzel px-8 py-3 rounded-lg bg-gradient-to-r from-red-800 to-amber-700 hover:from-red-700 hover:to-amber-600 text-white font-bold tracking-widest border border-amber-500/50 shadow-lg active:scale-95 transition-all">
+        RESTORE VOW
+      </button>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victory-modal" class="absolute inset-0 bg-black/85 backdrop-blur-md z-30 flex flex-col items-center justify-center hidden">
+      <h2 class="cinzel text-3xl sm:text-5xl font-black text-cyan-400 tracking-wider mb-2 drop-shadow-[0_0_25px_rgba(6,182,212,0.8)]">VOW FULFILLED</h2>
+      <p class="text-gray-300 font-mono text-sm mb-6 text-center max-w-sm">You cleansed all waves and held true to the sacred Oath.</p>
+      <button onclick="game.restart()" class="cinzel px-8 py-3 rounded-lg bg-gradient-to-r from-cyan-700 to-blue-600 hover:from-cyan-600 hover:to-blue-500 text-white font-bold tracking-widest border border-cyan-400/50 shadow-lg active:scale-95 transition-all">
+        FIGHT ANEW
+      </button>
+    </div>
+
+    <!-- Audio Prompt Hint -->
+    <div id="audio-hint" class="absolute top-16 left-1/2 -translate-x-1/2 text-[10px] text-gray-500 font-mono pointer-events-none transition-opacity duration-500">
+      Tap anywhere to engage combat audio
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       SYNTHESIZED WEB AUDIO ENGINE (Procedural SFX - No external audio files)
+       ========================================================================== */
+    const bgImage = new Image();
+		bgImage.src = "https://howps-lab.github.io/ai-lab/video-poster.jpg"; // Replace with your file path, URL, or Base64 string
+	
+	class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.initialized = false;
+      }
+
+      init() {
+        if (this.initialized) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        this.masterGain.connect(this.ctx.destination);
+        this.initialized = true;
+
+        const hint = document.getElementById('audio-hint');
+        if (hint) {
+          hint.style.opacity = '0';
+          setTimeout(() => hint.remove(), 600);
+        }
+      }
+
+      // Fast sword whoosh (filtered noise sweep)
+      playSlash(type = 1) {
+        if (!this.initialized) return;
+        const t = this.ctx.currentTime;
+        const bufferSize = this.ctx.sampleRate * 0.15;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        const startFreq = type === 3 ? 1200 : (type === 2 ? 2200 : 1800);
+        filter.frequency.setValueAtTime(startFreq, t);
+        filter.frequency.exponentialRampToValueAtTime(300, t + 0.12);
+        filter.Q.setValueAtTime(3.0, t);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(type === 3 ? 0.7 : 0.45, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+        noise.start(t);
+      }
+
+      // Punchy metallic hit impact
+      playHit(isCrit = false) {
+        if (!this.initialized) return;
+        const t = this.ctx.currentTime;
+
+        // Low punch oscillator
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = isCrit ? 'sawtooth' : 'triangle';
+        osc.frequency.setValueAtTime(isCrit ? 140 : 110, t);
+        osc.frequency.exponentialRampToValueAtTime(28, t + 0.16);
+
+        gain.gain.setValueAtTime(isCrit ? 0.8 : 0.5, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(t);
+        osc.stop(t + 0.2);
+
+        // Metallic clink
+        const ring = this.ctx.createOscillator();
+        const ringGain = this.ctx.createGain();
+        ring.type = 'sine';
+        ring.frequency.setValueAtTime(isCrit ? 1200 : 850, t);
+        ring.frequency.exponentialRampToValueAtTime(200, t + 0.08);
+
+        ringGain.gain.setValueAtTime(0.25, t);
+        ringGain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+
+        ring.connect(ringGain);
+        ringGain.connect(this.masterGain);
+        ring.start(t);
+        ring.stop(t + 0.1);
+      }
+
+      // Dodge roll gust
+      playDodge() {
+        if (!this.initialized) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(260, t);
+        osc.frequency.exponentialRampToValueAtTime(80, t + 0.2);
+
+        gain.gain.setValueAtTime(0.25, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(t);
+        osc.stop(t + 0.2);
+      }
+
+      // Oath Surge cinematic super explosion
+      playSurge() {
+        if (!this.initialized) return;
+        const t = this.ctx.currentTime;
+
+        // Sub bass drop
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, t);
+        osc.frequency.exponentialRampToValueAtTime(30, t + 0.6);
+
+        gain.gain.setValueAtTime(0.9, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(t);
+        osc.stop(t + 0.7);
+
+        // High shimmer sweep
+        const shimmer = this.ctx.createOscillator();
+        const sGain = this.ctx.createGain();
+        shimmer.type = 'sine';
+        shimmer.frequency.setValueAtTime(400, t);
+        shimmer.frequency.exponentialRampToValueAtTime(1600, t + 0.35);
+
+        sGain.gain.setValueAtTime(0.4, t);
+        sGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+
+        shimmer.connect(sGain);
+        sGain.connect(this.masterGain);
+        shimmer.start(t);
+        shimmer.stop(t + 0.5);
+      }
+
+      playStance() {
+        if (!this.initialized) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(520, t);
+        osc.frequency.setValueAtTime(780, t + 0.05);
+
+        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(t);
+        osc.stop(t + 0.2);
+      }
+    }
+
+    const sound = new SoundEngine();
+    window.addEventListener('pointerdown', () => sound.init(), { once: true });
+    window.addEventListener('keydown', () => sound.init(), { once: true });
+
+    /* ==========================================================================
+       PARTICLE & JUICE EFFECTS
+       ========================================================================== */
+    class Particle {
+      constructor(x, y, vx, vy, color, size, life, isGravity = true) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.color = color;
+        this.size = size;
+        this.maxLife = life;
+        this.life = life;
+        this.isGravity = isGravity;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.isGravity) this.vy += 0.3;
+        this.life--;
+      }
+      draw(ctx) {
+        const alpha = Math.max(0, this.life / this.maxLife);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = this.color;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    class SlashArc {
+      constructor(x, y, facing, type) {
+        this.x = x;
+        this.y = y;
+        this.facing = facing;
+        this.type = type; // 1 = light, 2 = up, 3 = cleave
+        this.life = 10;
+        this.maxLife = 10;
+      }
+      update() {
+        this.life--;
+      }
+      draw(ctx) {
+        const progress = 1 - (this.life / this.maxLife);
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.facing, 1);
+        ctx.globalAlpha = Math.max(0, 1 - progress);
+
+        ctx.strokeStyle = this.type === 3 ? '#fbbf24' : '#38bdf8';
+        ctx.lineWidth = this.type === 3 ? 7 : 4;
+        ctx.shadowColor = this.type === 3 ? '#f59e0b' : '#0284c7';
+        ctx.shadowBlur = 12;
+
+        ctx.beginPath();
+        if (this.type === 1) {
+          ctx.arc(30, -5, 55, -0.6, 0.8, false);
+        } else if (this.type === 2) {
+          ctx.arc(25, -15, 60, 0.9, -0.8, true);
+        } else {
+          // Heavy Cleave
+          ctx.arc(35, 10, 85, -1.2, 1.2, false);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    class DamageText {
+      constructor(x, y, text, isCrit = false) {
+        this.x = x + (Math.random() * 20 - 10);
+        this.y = y - 20;
+        this.text = text;
+        this.isCrit = isCrit;
+        this.life = 45;
+        this.vy = -1.8;
+      }
+      update() {
+        this.y += this.vy;
+        this.vy *= 0.94;
+        this.life--;
+      }
+      draw(ctx) {
+        ctx.save();
+        const alpha = Math.max(0, this.life / 45);
+        ctx.globalAlpha = alpha;
+        ctx.font = this.isCrit ? "bold 20px 'Cinzel', serif" : "bold 15px 'Inter', sans-serif";
+        ctx.fillStyle = this.isCrit ? "#fbbf24" : "#f1f5f9";
+        ctx.shadowColor = this.isCrit ? "#ea580c" : "#000000";
+        ctx.shadowBlur = 8;
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       MAIN PLAYER & ENEMY ACTORS
+       ========================================================================== */
+    class Player {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.w = 34;
+        this.h = 60;
+        this.vx = 0;
+        this.vy = 0;
+        this.speed = 5.2;
+        this.facing = 1; // 1: right, -1: left
+        this.grounded = true;
+
+        // Health & Energy
+        this.maxHp = 100;
+        this.hp = 100;
+        this.oathMeter = 0; // 0 to 100
+
+        // Combat states
+        this.state = 'idle'; // 'idle', 'run', 'jump', 'attack1', 'attack2', 'attack3', 'roll', 'surge', 'hurt'
+        this.stateTimer = 0;
+        this.comboStep = 0;
+        this.comboResetTimer = 0;
+        this.iFrames = 0;
+        this.attackHitDone = false;
+
+        // Animation timing
+        this.animFrame = 0;
+      }
+
+      update(input, groundY, enemies, game) {
+        this.stateTimer++;
+        if (this.iFrames > 0) this.iFrames--;
+        if (this.comboResetTimer > 0) {
+          this.comboResetTimer--;
+          if (this.comboResetTimer <= 0) {
+            this.comboStep = 0;
+          }
+        }
+
+        // Apply Oath Stance passive speed bonus/penalty
+        const moveSpeed = game.activeStance === 'IRON' ? this.speed * 0.9 : this.speed;
+
+        // Movement State Machine
+        const isAttacking = this.state.startsWith('attack');
+        const isRolling = this.state === 'roll';
+        const isSurging = this.state === 'surge';
+
+        if (!isRolling && !isSurging) {
+          if (!isAttacking) {
+            if (input.left) {
+              this.vx = -moveSpeed;
+              this.facing = -1;
+              if (this.grounded) this.state = 'run';
+            } else if (input.right) {
+              this.vx = moveSpeed;
+              this.facing = 1;
+              if (this.grounded) this.state = 'run';
+            } else {
+              this.vx *= 0.7;
+              if (this.grounded) this.state = 'idle';
+            }
+
+            // Jump
+            if (input.jump && this.grounded) {
+              this.vy = -12.5;
+              this.grounded = false;
+              this.state = 'jump';
+              game.spawnDust(this.x, this.y, 6);
+            }
+
+            // Roll
+            if (input.roll && this.grounded) {
+              this.state = 'roll';
+              this.stateTimer = 0;
+              this.iFrames = 18;
+              this.vx = this.facing * 8.5;
+              sound.playDodge();
+              game.spawnDust(this.x, this.y, 8);
+            }
+
+            // Oath Surge (Super)
+            if (input.surge && this.oathMeter >= 100) {
+              this.startSurge(game, enemies);
+            }
+          } else {
+            // Slow friction during attack
+            this.vx *= 0.6;
+          }
+
+          // Attack Trigger
+          if (input.attack && !isAttacking) {
+            this.executeComboAttack(game);
+          }
+        } else if (isRolling) {
+          // Rolling friction
+          this.vx *= 0.92;
+          if (this.stateTimer >= 18) {
+            this.state = 'idle';
+          }
+        } else if (isSurging) {
+          this.vx = 0;
+          this.vy = 0;
+          if (this.stateTimer >= 40) {
+            this.state = 'idle';
+          }
+        }
+
+        // Gravity & Ground Physics
+        if (!isSurging) {
+          this.vy += 0.65;
+          this.x += this.vx;
+          this.y += this.vy;
+
+          if (this.y >= groundY) {
+            this.y = groundY;
+            this.vy = 0;
+            this.grounded = true;
+          } else {
+            this.grounded = false;
+          }
+        }
+
+        // World Bounds
+        if (this.x < 30) this.x = 30;
+        if (this.x > game.width - 30) this.x = game.width - 30;
+
+        // Process Attack Hitbox checks
+        if (isAttacking && !this.attackHitDone) {
+          // Hit occurs during frame 4 to 8 of attack
+          if (this.stateTimer >= 4 && this.stateTimer <= 9) {
+            this.checkAttackHits(enemies, game);
+          }
+        }
+
+        // Advance Attack animation steps
+        if (isAttacking) {
+          const maxAttackTime = this.state === 'attack3' ? 24 : 16;
+          if (this.stateTimer >= maxAttackTime) {
+            this.state = 'idle';
+            this.attackHitDone = false;
+          }
+        }
+
+        this.animFrame++;
+      }
+
+      executeComboAttack(game) {
+        this.comboStep = (this.comboStep % 3) + 1;
+        this.state = `attack${this.comboStep}`;
+        this.stateTimer = 0;
+        this.attackHitDone = false;
+        this.comboResetTimer = 45; // Window to chain next hit
+
+        // Forward attack step
+        this.vx = this.facing * (this.comboStep === 3 ? 5.5 : 3.8);
+
+        // Sound & Arc
+        sound.playSlash(this.comboStep);
+        game.slashArcs.push(new SlashArc(this.x, this.y - 25, this.facing, this.comboStep));
+      }
+
+      checkAttackHits(enemies, game) {
+        const attackBox = {
+          x: this.facing === 1 ? this.x : this.x - (this.comboStep === 3 ? 85 : 70),
+          y: this.y - 50,
+          w: this.comboStep === 3 ? 85 : 70,
+          h: 55
+        };
+
+        enemies.forEach(e => {
+          if (e.hp <= 0) return;
+          // AABB Collision
+          if (
+            attackBox.x < e.x + e.w &&
+            attackBox.x + attackBox.w > e.x &&
+            attackBox.y < e.y &&
+            attackBox.y + attackBox.h > e.y - e.h
+          ) {
+            this.attackHitDone = true;
+
+            // Damage Calculation based on active Stance
+            let baseDamage = this.comboStep === 3 ? 38 : (this.comboStep === 2 ? 22 : 16);
+            let isCrit = false;
+
+            if (game.activeStance === 'FURY') {
+              if (Math.random() < 0.45) {
+                isCrit = true;
+                baseDamage = Math.round(baseDamage * 2.2);
+              }
+            } else if (Math.random() < 0.15) {
+              isCrit = true;
+              baseDamage = Math.round(baseDamage * 1.5);
+            }
+
+            // Knockback
+            const knockbackForce = this.comboStep === 3 ? 8.5 : 4.5;
+            e.takeDamage(baseDamage, this.facing, knockbackForce, isCrit, game);
+
+            // Oath Energy Meter Gain
+            const meterGain = game.activeStance === 'CLARITY' ? 18 : 9;
+            this.oathMeter = Math.min(100, this.oathMeter + meterGain);
+
+            // Hit Juice: Freeze Frame + Screen Shake + Sparks
+            game.triggerHitStop(this.comboStep === 3 ? 80 : 50);
+            game.triggerScreenShake(this.comboStep === 3 ? 9 : 4);
+            game.spawnSparks(e.x, e.y - 25, isCrit ? 16 : 8, isCrit ? '#facc15' : '#38bdf8');
+            sound.playHit(isCrit);
+
+            // Combo counter
+            game.registerComboHit();
+          }
+        });
+      }
+
+      startSurge(game, enemies) {
+        this.state = 'surge';
+        this.stateTimer = 0;
+        this.oathMeter = 0;
+        this.iFrames = 45;
+
+        sound.playSurge();
+        game.triggerHitStop(140);
+        game.triggerScreenShake(16);
+
+        // Screen-clearing slash slice across all active foes
+        enemies.forEach(e => {
+          if (e.hp > 0) {
+            e.takeDamage(75, Math.sign(e.x - this.x) || 1, 10, true, game);
+            game.spawnSparks(e.x, e.y - 25, 20, '#67e8f9');
+          }
+        });
+
+        // Massive visual flare
+        for (let i = 0; i < 30; i++) {
+          game.particles.push(
+            new Particle(
+              this.x + (Math.random() * 200 - 100),
+              this.y - 30 + (Math.random() * 60 - 30),
+              (Math.random() - 0.5) * 8,
+              (Math.random() - 0.5) * 8,
+              '#38bdf8',
+              Math.random() * 4 + 2,
+              35,
+              false
+            )
+          );
+        }
+      }
+
+      takeDamage(amount, fromX, game) {
+        if (this.iFrames > 0 || this.hp <= 0) return;
+
+        // Oath of Iron damage mitigation
+        let actualDamage = amount;
+        if (game.activeStance === 'IRON') {
+          actualDamage = Math.round(amount * 0.6); // 40% reduction
+        }
+
+        this.hp = Math.max(0, this.hp - actualDamage);
+        this.iFrames = 25;
+        this.vy = -3.5;
+        this.vx = (this.x < fromX ? -1 : 1) * 4.5;
+        this.state = 'hurt';
+
+        game.damageTexts.push(new DamageText(this.x, this.y - 20, `-${actualDamage}`, false));
+        game.triggerScreenShake(7);
+        game.spawnSparks(this.x, this.y - 20, 10, '#ef4444');
+        sound.playHit(false);
+
+        if (this.hp <= 0) {
+          game.triggerGameOver();
+        }
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.facing, 1);
+
+        // Invulnerability flicker
+        if (this.iFrames > 0 && Math.floor(this.animFrame / 3) % 2 === 0) {
+          ctx.globalAlpha = 0.4;
+        }
+
+        // Draw Player Articulated Shadow Silhouette with Neon Scarf & Blade
+        const isRun = this.state === 'run';
+        const legSwing = isRun ? Math.sin(this.animFrame * 0.35) * 12 : 0;
+        const armSwing = isRun ? Math.cos(this.animFrame * 0.35) * 10 : 0;
+
+        // Shadow / Body Tint
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+
+        // Back Leg
+        ctx.beginPath();
+        ctx.ellipse(-6 - legSwing * 0.4, -12, 5, 12, -0.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Front Leg
+        ctx.beginPath();
+        ctx.ellipse(6 + legSwing * 0.4, -12, 5.5, 13, 0.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Torso / Haori Cape
+        ctx.beginPath();
+        ctx.moveTo(-10, -26);
+        ctx.lineTo(8, -26);
+        ctx.lineTo(12, -10);
+        ctx.lineTo(-12, -10);
+        ctx.closePath();
+        ctx.fill();
+
+        // Glowing Blue Scarf / Sash Trail
+        ctx.strokeStyle = '#06b6d4';
+        ctx.shadowColor = '#22d3ee';
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(-4, -38);
+        const scarfWiggle = Math.sin(this.animFrame * 0.25) * 6;
+        ctx.quadraticCurveTo(-18, -34 + scarfWiggle, -30, -32 - scarfWiggle);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Head / Mask
+        ctx.fillStyle = '#090d16';
+        ctx.beginPath();
+        ctx.arc(0, -42, 8.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glowing Eye Slit
+        ctx.fillStyle = '#38bdf8';
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 8;
+        ctx.fillRect(2, -44, 4, 2);
+        ctx.shadowBlur = 0;
+
+        // Katana Sword & Arm
+        ctx.save();
+        ctx.translate(6, -28);
+        let armAngle = 0.2 + (armSwing * 0.05);
+
+        if (this.state === 'attack1') armAngle = -1.1;
+        if (this.state === 'attack2') armAngle = 1.3;
+        if (this.state === 'attack3') armAngle = 1.8;
+        if (this.state === 'roll') armAngle = -2.2;
+
+        ctx.rotate(armAngle);
+
+        // Hand
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(10, 0, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Katana Blade
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(44, -5);
+        ctx.stroke();
+
+        // Katana Hilt & Guard
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 3.5;
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.moveTo(8, -3);
+        ctx.lineTo(8, 3);
+        ctx.stroke();
+
+        ctx.restore();
+        ctx.restore();
+      }
+    }
+
+    class Enemy {
+      constructor(x, y, type = 'ronin') {
+        this.x = x;
+        this.y = y;
+        this.type = type;
+        this.w = 34;
+        this.h = 58;
+        this.vx = 0;
+        this.vy = 0;
+        this.speed = type === 'brute' ? 1.6 : 2.5;
+        this.facing = -1;
+        this.grounded = true;
+
+        this.maxHp = type === 'brute' ? 110 : 45;
+        this.hp = this.maxHp;
+
+        this.state = 'idle'; // 'idle', 'walk', 'telegraph', 'attack', 'stagger'
+        this.stateTimer = 0;
+        this.attackCooldown = Math.floor(Math.random() * 40) + 30;
+        this.animFrame = Math.floor(Math.random() * 100);
+      }
+
+      update(player, groundY, game) {
+        this.stateTimer++;
+        this.animFrame++;
+
+        if (this.attackCooldown > 0) this.attackCooldown--;
+
+        const distToPlayer = Math.abs(player.x - this.x);
+        this.facing = player.x > this.x ? 1 : -1;
+
+        if (this.state === 'idle' || this.state === 'walk') {
+          if (distToPlayer > 55) {
+            this.state = 'walk';
+            this.vx = this.facing * this.speed;
+          } else {
+            this.vx = 0;
+            this.state = 'idle';
+            if (this.attackCooldown <= 0 && player.hp > 0) {
+              this.state = 'telegraph';
+              this.stateTimer = 0;
+            }
+          }
+        } else if (this.state === 'telegraph') {
+          // Warning windup (crimson flash)
+          this.vx = 0;
+          if (this.stateTimer >= 22) {
+            this.state = 'attack';
+            this.stateTimer = 0;
+            this.vx = this.facing * (this.type === 'brute' ? 4 : 5.5);
+            sound.playSlash(1);
+          }
+        } else if (this.state === 'attack') {
+          if (this.stateTimer === 6) {
+            // Check hit against player
+            if (Math.abs(player.x - this.x) < 55 && Math.abs(player.y - this.y) < 35) {
+              player.takeDamage(this.type === 'brute' ? 24 : 14, this.x, game);
+            }
+          }
+          if (this.stateTimer >= 20) {
+            this.state = 'idle';
+            this.attackCooldown = 50 + Math.floor(Math.random() * 30);
+          }
+        } else if (this.state === 'stagger') {
+          this.vx *= 0.88;
+          if (this.stateTimer >= 18) {
+            this.state = 'idle';
+          }
+        }
+
+        // Gravity & Ground
+        this.vy += 0.65;
+        this.x += this.vx;
+        this.y += this.vy;
+
+        if (this.y >= groundY) {
+          this.y = groundY;
+          this.vy = 0;
+          this.grounded = true;
+        }
+
+        // Keep inside bounds
+        if (this.x < 20) this.x = 20;
+        if (this.x > game.width - 20) this.x = game.width - 20;
+      }
+
+      takeDamage(amount, direction, knockback, isCrit, game) {
+        this.hp -= amount;
+        this.state = 'stagger';
+        this.stateTimer = 0;
+        this.vx = direction * knockback;
+        this.vy = -3.2;
+
+        game.damageTexts.push(new DamageText(this.x, this.y - 30, amount, isCrit));
+
+        if (this.hp <= 0) {
+          game.onEnemyKilled(this);
+        }
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.facing, 1);
+
+        // Telegraph Attack Flash
+        if (this.state === 'telegraph') {
+          ctx.shadowColor = '#ef4444';
+          ctx.shadowBlur = 14;
+        }
+
+        const isWalk = this.state === 'walk';
+        const legSwing = isWalk ? Math.sin(this.animFrame * 0.3) * 10 : 0;
+
+        // Shadow Silhouette
+        ctx.fillStyle = this.type === 'brute' ? '#1c1917' : '#18181b';
+
+        // Legs
+        ctx.beginPath();
+        ctx.ellipse(-5 - legSwing * 0.4, -12, 5, 12, -0.1, 0, Math.PI * 2);
+        ctx.ellipse(5 + legSwing * 0.4, -12, 5, 12, 0.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Torso / Armor
+        ctx.beginPath();
+        ctx.moveTo(-11, -26);
+        ctx.lineTo(10, -26);
+        ctx.lineTo(8, -10);
+        ctx.lineTo(-9, -10);
+        ctx.closePath();
+        ctx.fill();
+
+        // Head / Helmet
+        ctx.fillStyle = '#09090b';
+        ctx.beginPath();
+        ctx.arc(0, -40, this.type === 'brute' ? 10 : 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glowing Red Malicious Eyes
+        ctx.fillStyle = '#f87171';
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 8;
+        ctx.fillRect(2, -42, 3.5, 2);
+        ctx.shadowBlur = 0;
+
+        // Weapon
+        ctx.save();
+        ctx.translate(5, -24);
+        let armAngle = 0.2;
+        if (this.state === 'telegraph') armAngle = -1.2;
+        if (this.state === 'attack') armAngle = 1.2;
+        ctx.rotate(armAngle);
+
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#dc2626';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.moveTo(6, 0);
+        ctx.lineTo(32, -4);
+        ctx.stroke();
+        ctx.restore();
+
+        // Health Bar above enemy head
+        const barWidth = 34;
+        const barHeight = 4;
+        const hpPercent = Math.max(0, this.hp / this.maxHp);
+        ctx.fillStyle = '#27272a';
+        ctx.fillRect(-barWidth / 2, -60, barWidth, barHeight);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(-barWidth / 2, -60, barWidth * hpPercent, barHeight);
+
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       MAIN GAME ENGINE
+       ========================================================================== */
+    class GameEngine {
+      constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+
+        // Viewport & Scale
+        this.groundY = 0;
+
+        // Camera & Juice
+        this.shakeX = 0;
+        this.shakeY = 0;
+        this.shakeIntensity = 0;
+        this.hitStopFrames = 0;
+
+        // Input
+        this.input = {
+          left: false,
+          right: false,
+          jump: false,
+          attack: false,
+          roll: false,
+          surge: false
+        };
+
+        // Entities & Systems
+        this.player = null;
+        this.enemies = [];
+        this.particles = [];
+        this.slashArcs = [];
+        this.damageTexts = [];
+
+        // Game Progress
+        this.currentWave = 1;
+        this.maxWave = 5;
+        this.waveKills = 0;
+        this.waveTargetKills = 4;
+        this.activeStance = 'IRON'; // IRON, FURY, CLARITY
+        this.comboHits = 0;
+        this.comboTimer = 0;
+
+        this.init();
+      }
+
+      init() {
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+
+        this.setupKeyboard();
+        this.setupTouchControls();
+
+        this.resetGame();
+        this.updateHUD();
+
+        requestAnimationFrame((t) => this.gameLoop(t));
+      }
+
+      resize() {
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = this.width * dpr;
+        this.canvas.height = this.height * dpr;
+        this.ctx.scale(dpr, dpr);
+        this.groundY = this.height - (this.height < 600 ? 280 : 320);
+      }
+
+      resetGame() {
+        this.player = new Player(this.width * 0.25, this.groundY);
+        this.enemies = [];
+        this.particles = [];
+        this.slashArcs = [];
+        this.damageTexts = [];
+        this.currentWave = 1;
+        this.waveKills = 0;
+        this.waveTargetKills = 4;
+        this.setStance('IRON');
+
+        document.getElementById('game-over-modal').classList.add('hidden');
+        document.getElementById('victory-modal').classList.add('hidden');
+
+        this.spawnWave();
+      }
+
+      restart() {
+        this.resetGame();
+      }
+
+      setStance(stance) {
+        this.activeStance = stance;
+        sound.playStance();
+
+        // Update Stance UI Badges
+        const ironBtn = document.getElementById('stance-iron');
+        const furyBtn = document.getElementById('stance-fury');
+        const clarityBtn = document.getElementById('stance-clarity');
+        const desc = document.getElementById('hud-stance-desc');
+
+        ironBtn.className = "px-2 sm:px-2.5 py-1 rounded text-[10px] sm:text-xs font-bold cinzel transition-all " +
+          (stance === 'IRON' ? "bg-slate-700 border-2 border-slate-300 text-white shadow-md" : "bg-slate-900/60 border border-slate-700 text-slate-400");
+        furyBtn.className = "px-2 sm:px-2.5 py-1 rounded text-[10px] sm:text-xs font-bold cinzel transition-all " +
+          (stance === 'FURY' ? "bg-red-800 border-2 border-red-400 text-white shadow-md" : "bg-red-950/40 border border-red-900 text-red-400");
+        clarityBtn.className = "px-2 sm:px-2.5 py-1 rounded text-[10px] sm:text-xs font-bold cinzel transition-all " +
+          (stance === 'CLARITY' ? "bg-cyan-800 border-2 border-cyan-300 text-white shadow-md" : "bg-cyan-950/40 border border-cyan-900 text-cyan-400");
+
+        if (desc) {
+          if (stance === 'IRON') desc.textContent = "Iron: -40% Dmg Taken";
+          if (stance === 'FURY') desc.textContent = "Fury: +120% Crit Dmg";
+          if (stance === 'CLARITY') desc.textContent = "Clarity: 2x Oath Meter";
+        }
+      }
+
+      spawnWave() {
+        const count = 3 + this.currentWave;
+        this.waveKills = 0;
+        this.waveTargetKills = count;
+
+        for (let i = 0; i < count; i++) {
+          setTimeout(() => {
+            if (this.player.hp <= 0) return;
+            const spawnSide = Math.random() < 0.5 ? 40 : this.width - 40;
+            const isBrute = this.currentWave >= 2 && Math.random() < 0.35;
+            this.enemies.push(new Enemy(spawnSide, this.groundY, isBrute ? 'brute' : 'ronin'));
+          }, i * 1400);
+        }
+
+        const waveText = document.getElementById('hud-wave');
+        if (waveText) waveText.textContent = `WAVE ${this.currentWave}`;
+      }
+
+      onEnemyKilled(enemy) {
+        this.spawnSparks(enemy.x, enemy.y - 25, 18, '#ef4444');
+        this.waveKills++;
+
+        // Remove from list after brief delay
+        this.enemies = this.enemies.filter(e => e !== enemy);
+
+        if (this.waveKills >= this.waveTargetKills) {
+          if (this.currentWave < this.maxWave) {
+            this.currentWave++;
+            setTimeout(() => this.spawnWave(), 1200);
+          } else {
+            // Victorious!
+            document.getElementById('victory-modal').classList.remove('hidden');
+          }
+        }
+      }
+
+      registerComboHit() {
+        this.comboHits++;
+        this.comboTimer = 110; // ~1.8 seconds
+
+        const comboEl = document.getElementById('hud-combo');
+        const countEl = document.getElementById('hud-combo-count');
+        if (comboEl && countEl) {
+          countEl.textContent = this.comboHits;
+          comboEl.style.opacity = '1';
+          countEl.classList.remove('scale-125');
+          void countEl.offsetWidth; // Force reflow
+          countEl.classList.add('scale-125');
+        }
+      }
+
+      triggerHitStop(ms) {
+        this.hitStopFrames = Math.floor(ms / 16);
+      }
+
+      triggerScreenShake(intensity) {
+        this.shakeIntensity = intensity;
+      }
+
+      triggerGameOver() {
+        const modal = document.getElementById('game-over-modal');
+        const stats = document.getElementById('game-over-stats');
+        if (stats) stats.textContent = `Fell in Wave ${this.currentWave} with ${this.comboHits} total combo peak.`;
+        if (modal) modal.classList.remove('hidden');
+      }
+
+      spawnSparks(x, y, count, color) {
+        for (let i = 0; i < count; i++) {
+          const speed = Math.random() * 6 + 2;
+          const angle = Math.random() * Math.PI * 2;
+          this.particles.push(
+            new Particle(
+              x,
+              y,
+              Math.cos(angle) * speed,
+              Math.sin(angle) * speed,
+              color,
+              Math.random() * 2.5 + 1.5,
+              Math.floor(Math.random() * 15) + 12
+            )
+          );
+        }
+      }
+
+      spawnDust(x, y, count) {
+        for (let i = 0; i < count; i++) {
+          this.particles.push(
+            new Particle(
+              x + (Math.random() * 20 - 10),
+              y,
+              (Math.random() - 0.5) * 3,
+              -Math.random() * 2,
+              '#64748b',
+              Math.random() * 3 + 2,
+              20,
+              false
+            )
+          );
+        }
+      }
+
+      setupKeyboard() {
+        window.addEventListener('keydown', (e) => {
+          if (e.repeat) return;
+          if (e.code === 'KeyA' || e.code === 'ArrowLeft') this.input.left = true;
+          if (e.code === 'KeyD' || e.code === 'ArrowRight') this.input.right = true;
+          if (e.code === 'KeyK' || e.code === 'KeyX' || e.code === 'ArrowUp') this.input.jump = true;
+          if (e.code === 'KeyJ' || e.code === 'KeyZ') this.input.attack = true;
+          if (e.code === 'KeyL' || e.code === 'KeyC') this.input.roll = true;
+          if (e.code === 'Space') this.input.surge = true;
+
+          // Quick Stance Selection 1-3
+          if (e.code === 'Digit1') this.setStance('IRON');
+          if (e.code === 'Digit2') this.setStance('FURY');
+          if (e.code === 'Digit3') this.setStance('CLARITY');
+        });
+
+        window.addEventListener('keyup', (e) => {
+          if (e.code === 'KeyA' || e.code === 'ArrowLeft') this.input.left = false;
+          if (e.code === 'KeyD' || e.code === 'ArrowRight') this.input.right = false;
+          if (e.code === 'KeyK' || e.code === 'KeyX' || e.code === 'ArrowUp') this.input.jump = false;
+          if (e.code === 'KeyJ' || e.code === 'KeyZ') this.input.attack = false;
+          if (e.code === 'KeyL' || e.code === 'KeyC') this.input.roll = false;
+          if (e.code === 'Space') this.input.surge = false;
+        });
+      }
+
+      setupTouchControls() {
+        const bindTouch = (id, key) => {
+          const btn = document.getElementById(id);
+          if (!btn) return;
+          const press = (e) => {
+            e.preventDefault();
+            sound.init();
+            this.input[key] = true;
+          };
+          const release = (e) => {
+            e.preventDefault();
+            this.input[key] = false;
+          };
+          btn.addEventListener('touchstart', press, { passive: false });
+          btn.addEventListener('touchend', release, { passive: false });
+          btn.addEventListener('touchcancel', release, { passive: false });
+          btn.addEventListener('mousedown', press);
+          btn.addEventListener('mouseup', release);
+          btn.addEventListener('mouseleave', release);
+        };
+
+        bindTouch('btn-left', 'left');
+        bindTouch('btn-right', 'right');
+        bindTouch('btn-jump', 'jump');
+        bindTouch('btn-attack', 'attack');
+        bindTouch('btn-roll', 'roll');
+        bindTouch('btn-surge', 'surge');
+      }
+
+      updateHUD() {
+        // Player HP Bar
+        const hpFill = document.getElementById('hud-hp-fill');
+        const hpVal = document.getElementById('hud-hp-val');
+        if (hpFill && this.player) {
+          const hpPct = Math.max(0, (this.player.hp / this.player.maxHp) * 100);
+          hpFill.style.width = `${hpPct}%`;
+          if (hpVal) hpVal.textContent = `${Math.ceil(this.player.hp)}/${this.player.maxHp}`;
+        }
+
+        // Oath Meter Bar & Button Glow
+        const oathFill = document.getElementById('hud-oath-fill');
+        const oathVal = document.getElementById('hud-oath-val');
+        const surgeBtn = document.getElementById('btn-surge');
+        if (oathFill && this.player) {
+          oathFill.style.width = `${this.player.oathMeter}%`;
+          if (oathVal) oathVal.textContent = `${Math.round(this.player.oathMeter)}%`;
+
+          if (this.player.oathMeter >= 100) {
+            surgeBtn.classList.add('glow-cyan', 'border-cyan-400', 'text-cyan-200');
+          } else {
+            surgeBtn.classList.remove('glow-cyan', 'border-cyan-400', 'text-cyan-200');
+          }
+        }
+
+        // Combo Counter Fade
+        if (this.comboTimer > 0) {
+          this.comboTimer--;
+          if (this.comboTimer <= 0) {
+            this.comboHits = 0;
+            const comboEl = document.getElementById('hud-combo');
+            if (comboEl) comboEl.style.opacity = '0';
+          }
+        }
+      }
+
+      drawBackground() {
+		const ctx = this.ctx;
+		if (bgImage.complete && bgImage.naturalWidth > 0) {
+    const canvasRatio = this.width / this.height;
+    const imgRatio = bgImage.naturalWidth / bgImage.naturalHeight;
+
+    let sx = 0, sy = 0;
+    let sWidth = bgImage.naturalWidth;
+    let sHeight = bgImage.naturalHeight;
+
+    // Crop edges proportionally depending on orientation
+    if (canvasRatio > imgRatio) {
+      // Screen is wider than image (landscape)
+      sHeight = bgImage.naturalWidth / canvasRatio;
+      sy = (bgImage.naturalHeight - sHeight) / 2;
+    } else {
+      // Screen is taller than image (portrait)
+      sWidth = bgImage.naturalHeight * canvasRatio;
+      sx = (bgImage.naturalWidth - sWidth) / 1.2;
+    }
+
+    // Draw the centered slice scaled to the canvas
+    ctx.drawImage(bgImage, sx, sy, sWidth, sHeight, 0, 0, this.width, this.height);
+  } else {
+    ctx.fillStyle = "#0b0f19";
+    ctx.fillRect(0, 0, this.width, this.height);
+  }
+	 // Ground Platform & Temple Flagstones
+        ctx.fillStyle = '#0a0f1d';
+        ctx.fillRect(0, this.groundY, this.width, this.height - this.groundY);
+
+        // Ground highlight border
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(0, this.groundY);
+        ctx.lineTo(this.width, this.groundY);
+        ctx.stroke();
+
+        // Decorative stone line pattern
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1;
+        for (let i = 20; i < this.width; i += 70) {
+          ctx.beginPath();
+          ctx.moveTo(i, this.groundY);
+          ctx.lineTo(i - 15, this.groundY + 35);
+          ctx.stroke();
+        }
+	}
+
+      gameLoop() {
+        // Handle Hit-Stop
+        if (this.hitStopFrames > 0) {
+          this.hitStopFrames--;
+        } else {
+          // Physics & Logic Update
+          if (this.player && this.player.hp > 0) {
+            this.player.update(this.input, this.groundY, this.enemies, this);
+          }
+
+          this.enemies.forEach(e => e.update(this.player, this.groundY, this));
+          this.particles.forEach(p => p.update());
+          this.slashArcs.forEach(s => s.update());
+          this.damageTexts.forEach(d => d.update());
+
+          // Clean up dead particles
+          this.particles = this.particles.filter(p => p.life > 0);
+          this.slashArcs = this.slashArcs.filter(s => s.life > 0);
+          this.damageTexts = this.damageTexts.filter(d => d.life > 0);
+        }
+
+        // Screen Shake calculation
+        if (this.shakeIntensity > 0) {
+          this.shakeX = (Math.random() - 0.5) * this.shakeIntensity;
+          this.shakeY = (Math.random() - 0.5) * this.shakeIntensity;
+          this.shakeIntensity *= 0.88;
+          if (this.shakeIntensity < 0.3) this.shakeIntensity = 0;
+        } else {
+          this.shakeX = 0;
+          this.shakeY = 0;
+        }
+
+        // Rendering
+        this.ctx.save();
+        this.ctx.translate(this.shakeX, this.shakeY);
+
+        this.drawBackground();
+
+        // Draw Slash Arcs & VFX Behind Characters
+        this.slashArcs.forEach(s => s.draw(this.ctx));
+
+        // Draw Enemies & Player
+        this.enemies.forEach(e => e.draw(this.ctx));
+        if (this.player) this.player.draw(this.ctx);
+
+        // Draw Particles & Floating Damage Numbers on Top
+        this.particles.forEach(p => p.draw(this.ctx));
+        this.damageTexts.forEach(d => d.draw(this.ctx));
+
+        this.ctx.restore();
+
+        this.updateHUD();
+
+        requestAnimationFrame(() => this.gameLoop());
+      }
+    }
+
+    // Initialize Game Engine on Window Load
+    let game;
+    window.addEventListener('load', () => {
+      game = new GameEngine();
+    });
+  </script>
+</body>
+</html>
