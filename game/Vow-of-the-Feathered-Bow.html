@@ -1,0 +1,2300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Vow of the Feathered Bow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0c0914;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .cinzel {
+      font-family: 'Cinzel', serif;
+    }
+    canvas#gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #0d0a1a;
+      cursor: crosshair;
+    }
+    /* Celestial Glassmorphism & Gold Highlights */
+    .celestial-panel {
+      background: rgba(18, 14, 28, 0.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(234, 204, 137, 0.28);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45), inset 0 0 12px rgba(255, 235, 175, 0.08);
+    }
+    .stance-card {
+      transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .stance-card.active {
+      border-color: #f7d070;
+      background: rgba(85, 60, 20, 0.45);
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 0 18px rgba(247, 208, 112, 0.45);
+    }
+    .ruby-gem {
+      transition: all 0.3s ease;
+      filter: drop-shadow(0 0 2px rgba(255, 40, 80, 0.4));
+    }
+    .ruby-gem.lit {
+      filter: drop-shadow(0 0 8px rgba(255, 60, 90, 0.95)) drop-shadow(0 0 16px rgba(255, 180, 100, 0.8));
+      transform: scale(1.15);
+    }
+    @keyframes pulse-gold {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.04); }
+    }
+    .pulse-ready {
+      animation: pulse-gold 1.4s infinite ease-in-out;
+    }
+    /* Touch controls on mobile */
+    .touch-btn {
+      background: rgba(26, 20, 38, 0.65);
+      border: 1.5px solid rgba(240, 215, 150, 0.4);
+      backdrop-filter: blur(6px);
+      touch-action: none;
+    }
+    .touch-btn:active, .touch-btn.pressed {
+      background: rgba(220, 180, 80, 0.35);
+      border-color: #ffe699;
+      transform: scale(0.92);
+    }
+  </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden text-amber-50">
+
+  <!-- Main Game Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Top HUD Bar -->
+  <header class="absolute top-0 left-0 right-0 p-3 sm:p-5 flex justify-between items-start pointer-events-none z-20">
+    <!-- Left: Health & Status -->
+    <div class="flex flex-col gap-2 max-w-[280px] sm:max-w-xs celestial-panel p-3 rounded-2xl pointer-events-auto">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full border border-amber-300 flex items-center justify-center bg-gradient-to-tr from-amber-900 to-amber-700 shadow-sm">
+            <span class="text-sm">??</span>
+          </div>
+          <div>
+            <div class="cinzel text-xs font-bold text-amber-200 tracking-wider">LUMINA OF THE FEATHER</div>
+            <div class="text-[10px] text-amber-400/80 font-medium tracking-tight">Ethereal Archon</div>
+          </div>
+        </div>
+        <div class="text-right">
+          <span id="hpText" class="text-xs font-bold text-amber-100 font-mono">100/100</span>
+        </div>
+      </div>
+      <!-- Health Bar -->
+      <div class="w-full h-2.5 bg-black/50 rounded-full overflow-hidden border border-amber-900/60 p-[1px]">
+        <div id="hpFill" class="h-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-400 rounded-full transition-all duration-150" style="width: 100%;"></div>
+      </div>
+      <!-- Bullet Time Stamina Bar -->
+      <div class="flex items-center gap-2">
+        <span class="text-[9px] font-bold text-sky-300 tracking-wider font-mono">ZEPHYR</span>
+        <div class="flex-1 h-1.5 bg-black/40 rounded-full overflow-hidden border border-sky-800/40">
+          <div id="zephyrFill" class="h-full bg-gradient-to-r from-cyan-500 to-sky-300 rounded-full transition-all duration-75" style="width: 100%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Stances & Dawn Core Gauge -->
+    <div class="flex flex-col items-center gap-2 pointer-events-auto">
+      <!-- Stance Switcher -->
+      <div class="flex items-center gap-1.5 sm:gap-2 celestial-panel p-1.5 sm:p-2 rounded-2xl">
+        <button id="stanceBtn1" onclick="setStance(0)" class="stance-card active flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-400/20 text-xs">
+          <span class="text-amber-300">?</span>
+          <div class="text-left hidden sm:block">
+            <div class="cinzel font-bold text-[11px] text-amber-200 leading-tight">RADIANCE</div>
+            <div class="text-[9px] text-amber-300/70">[1] Rapid Arrow</div>
+          </div>
+        </button>
+        <button id="stanceBtn2" onclick="setStance(1)" class="stance-card flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-400/20 text-xs">
+          <span class="text-orange-400">?</span>
+          <div class="text-left hidden sm:block">
+            <div class="cinzel font-bold text-[11px] text-amber-200 leading-tight">SOLITUDE</div>
+            <div class="text-[9px] text-orange-300/70">[2] Heavy Detonation</div>
+          </div>
+        </button>
+        <button id="stanceBtn3" onclick="setStance(2)" class="stance-card flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-400/20 text-xs">
+          <span class="text-emerald-300">??</span>
+          <div class="text-left hidden sm:block">
+            <div class="cinzel font-bold text-[11px] text-amber-200 leading-tight">GRACE</div>
+            <div class="text-[9px] text-emerald-300/70">[3] Silk Decoy Spread</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Dawn Ruby Cores (EX Meter) -->
+      <div class="flex items-center gap-3 celestial-panel px-4 py-1.5 rounded-full border-amber-500/30">
+        <span class="text-[10px] cinzel tracking-widest text-amber-300/90 font-bold hidden md:inline">SANCTUM DAWN</span>
+        <div class="flex items-center gap-2">
+          <div id="rubyCore0" class="ruby-gem w-4 h-4 rounded-full bg-red-950 border border-red-500/40"></div>
+          <div id="rubyCore1" class="ruby-gem w-4 h-4 rounded-full bg-red-950 border border-red-500/40"></div>
+          <div id="rubyCore2" class="ruby-gem w-5 h-5 rounded-full bg-red-950 border border-red-500/50"></div>
+        </div>
+        <div id="exStatusText" class="text-[10px] font-bold text-amber-300/80 font-mono tracking-wider">0% [R]</div>
+      </div>
+    </div>
+
+    <!-- Right: Score, Waves, Audio & Pause -->
+    <div class="flex items-start gap-2 celestial-panel p-2.5 sm:p-3 rounded-2xl pointer-events-auto">
+      <div class="text-right pr-2 border-r border-amber-400/20">
+        <div class="text-[10px] cinzel text-amber-300/70 tracking-widest">PURIFIED WAVES</div>
+        <div id="waveCounter" class="cinzel text-base sm:text-lg font-bold text-amber-100">WAVE 1</div>
+        <div class="text-[10px] font-mono text-amber-300/90 font-semibold" id="scoreDisplay">0 PTS</div>
+      </div>
+      <button id="audioToggle" onclick="toggleAudio()" class="w-9 h-9 rounded-xl border border-amber-400/30 flex items-center justify-center bg-black/30 hover:bg-amber-500/20 text-amber-200 text-sm">
+        ??
+      </button>
+      <button id="pauseBtn" onclick="togglePause()" class="w-9 h-9 rounded-xl border border-amber-400/30 flex items-center justify-center bg-black/30 hover:bg-amber-500/20 text-amber-200 text-sm">
+        ?
+      </button>
+    </div>
+  </header>
+
+  <!-- Combo Display (Floating on Left-Center) -->
+  <div id="comboContainer" class="absolute left-6 top-1/3 pointer-events-none transition-all duration-150 opacity-0 transform -translate-x-4">
+    <div class="cinzel text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-100 drop-shadow-[0_2px_10px_rgba(255,215,0,0.5)]" id="comboCount">0</div>
+    <div class="text-[10px] cinzel tracking-[0.25em] text-amber-300 font-bold uppercase">DAWN HITS</div>
+  </div>
+
+  <!-- Bullet-Time Visual Vignette Overlay -->
+  <div id="bulletTimeOverlay" class="absolute inset-0 pointer-events-none transition-opacity duration-300 opacity-0 bg-radial from-transparent via-cyan-900/10 to-indigo-950/40 border-[6px] border-cyan-400/20"></div>
+
+  <!-- EX Screen Flash / Beam Container -->
+  <div id="exFlashOverlay" class="absolute inset-0 pointer-events-none bg-white opacity-0 transition-opacity duration-75 z-30"></div>
+
+  <!-- Mobile On-Screen Controls (Visible on Touch/Small screens) -->
+  <div class="sm:hidden absolute bottom-4 left-4 right-4 flex justify-between items-end pointer-events-none z-20">
+    <!-- Virtual Movement Joy/Buttons -->
+    <div class="flex gap-2 pointer-events-auto">
+      <button id="btnLeft" class="touch-btn w-14 h-14 rounded-2xl flex items-center justify-center text-xl text-amber-100 active:scale-90">?</button>
+      <button id="btnRight" class="touch-btn w-14 h-14 rounded-2xl flex items-center justify-center text-xl text-amber-100 active:scale-90">?</button>
+    </div>
+    <!-- Virtual Action Buttons -->
+    <div class="flex flex-col items-end gap-2 pointer-events-auto">
+      <div class="flex gap-2">
+        <button id="btnEx" onclick="tryTriggerEX()" class="touch-btn w-12 h-12 rounded-xl flex items-center justify-center text-xs font-bold text-rose-300 border-rose-500/50">EX</button>
+        <button id="btnDash" class="touch-btn w-12 h-12 rounded-xl flex items-center justify-center text-xs font-bold text-amber-200">DASH</button>
+      </div>
+      <div class="flex gap-2">
+        <button id="btnJump" class="touch-btn w-14 h-14 rounded-2xl flex items-center justify-center text-xl text-amber-200">?</button>
+        <button id="btnShoot" class="touch-btn w-16 h-16 rounded-2xl bg-amber-500/20 border-2 border-amber-300 flex items-center justify-center text-2xl text-amber-100 shadow-lg">??</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start / Pause / Game Over Modal Overlays -->
+  <div id="modalOverlay" class="absolute inset-0 flex items-center justify-center z-40 bg-black/75 backdrop-blur-md transition-opacity duration-300">
+    <div class="celestial-panel max-w-md w-[90%] p-6 sm:p-8 rounded-3xl text-center border-2 border-amber-400/40 shadow-2xl relative overflow-hidden">
+      <div class="absolute -top-12 -left-12 w-32 h-32 rounded-full bg-amber-400/10 blur-2xl"></div>
+      <div class="absolute -bottom-12 -right-12 w-32 h-32 rounded-full bg-rose-500/10 blur-2xl"></div>
+
+      <div class="text-3xl sm:text-4xl mb-1">??</div>
+      <h1 id="modalTitle" class="cinzel text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-500 tracking-wider mb-2">
+        VOW OF THE FEATHERED BOW
+      </h1>
+      <p id="modalSubtitle" class="text-xs sm:text-sm text-amber-200/80 mb-6 leading-relaxed">
+        Glide through the celestial ruins. Kite shadow fiends with mid-air bullet time and unleash the 3 Ruby Cores of Sanctum Dawn.
+      </p>
+
+      <div class="space-y-2 mb-6 text-left text-xs bg-black/40 p-3.5 rounded-2xl border border-amber-400/15 text-amber-200/90 font-mono">
+        <div class="flex justify-between"><span>[A / D] or [Arrows]</span> <span class="text-amber-300">Run / Glide</span></div>
+        <div class="flex justify-between"><span>[Space / W]</span> <span class="text-amber-300">Jump / Double-Jump</span></div>
+        <div class="flex justify-between"><span>[Shift / S / K]</span> <span class="text-amber-300">Silk Dash (i-frames)</span></div>
+        <div class="flex justify-between"><span>[Left Mouse / J]</span> <span class="text-amber-300">Draw & Shoot Bow</span></div>
+        <div class="flex justify-between"><span>Air Draw</span> <span class="text-cyan-300">Bullet-Time Aim (0.25x)</span></div>
+        <div class="flex justify-between"><span>[1, 2, 3] or [Q / E]</span> <span class="text-amber-300">Switch Three Oaths</span></div>
+        <div class="flex justify-between"><span>[R] or [EX Button]</span> <span class="text-rose-300">Sanctum Dawn Sunbeam</span></div>
+      </div>
+
+      <button id="modalActionBtn" onclick="startOrResumeGame()" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-stone-950 font-bold cinzel text-sm sm:text-base tracking-widest shadow-lg shadow-amber-600/30 transition-transform active:scale-95">
+        BEGIN THE VOW
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       VOW OF THE FEATHERED BOW - GAME ENGINE & SYSTEM CORE
+       ========================================================================== */
+
+    // Canvas & Context Setup
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+
+    function resizeCanvas() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    /* ==========================================================================
+       PROCEDURAL WEB AUDIO SYNTHESIZER
+       ========================================================================== */
+    class AudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.bgOscNodes = [];
+        this.musicGain = null;
+        this.masterGain = null;
+        this.isMusicPlaying = false;
+        this.lowPassNode = null;
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
+
+        this.lowPassNode = this.ctx.createBiquadFilter();
+        this.lowPassNode.type = 'lowpass';
+        this.lowPassNode.frequency.setValueAtTime(14000, this.ctx.currentTime);
+
+        this.lowPassNode.connect(this.masterGain);
+        this.masterGain.connect(this.ctx.destination);
+
+        this.startCelestialMusic();
+      }
+
+      setSlowMoAudio(isSlowMo) {
+        if (!this.ctx || !this.lowPassNode) return;
+        const targetFreq = isSlowMo ? 800 : 14000;
+        this.lowPassNode.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.08);
+      }
+
+      playBowTwang(pitchFactor = 1.0) {
+        if (!this.ctx || this.muted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440 * pitchFactor, now);
+        osc.frequency.exponentialRampToValueAtTime(110 * pitchFactor, now + 0.12);
+
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+        osc.connect(gain);
+        gain.connect(this.lowPassNode);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      }
+
+      playHeavyBlast() {
+        if (!this.ctx || this.muted) return;
+        const now = this.ctx.currentTime;
+        // Low rumble oscillator
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.35);
+
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+        osc.connect(gain);
+        gain.connect(this.lowPassNode);
+        osc.start(now);
+        osc.stop(now + 0.4);
+
+        // White noise burst for impact
+        const bufferSize = this.ctx.sampleRate * 0.25;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const noiseFilter = this.ctx.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.setValueAtTime(800, now);
+        noiseFilter.frequency.exponentialRampToValueAtTime(100, now + 0.25);
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.4, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(this.lowPassNode);
+        noise.start(now);
+      }
+
+      playHitConfirm() {
+        if (!this.ctx || this.muted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880 + Math.random() * 200, now);
+        osc.frequency.exponentialRampToValueAtTime(1400, now + 0.08);
+
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+        osc.connect(gain);
+        gain.connect(this.lowPassNode);
+        osc.start(now);
+        osc.stop(now + 0.09);
+      }
+
+      playDash() {
+        if (!this.ctx || this.muted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(200, now + 0.16);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+        osc.connect(gain);
+        gain.connect(this.lowPassNode);
+        osc.start(now);
+        osc.stop(now + 0.19);
+      }
+
+      playSanctumDawnBeam() {
+        if (!this.ctx || this.muted) return;
+        const now = this.ctx.currentTime;
+        // Rising power chord
+        [220, 330, 440, 660, 880].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq * 0.7, now);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.4);
+
+          gain.gain.setValueAtTime(0.12 / (idx + 1), now);
+          gain.gain.linearRampToValueAtTime(0.2, now + 0.4);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.6);
+
+          osc.connect(gain);
+          gain.connect(this.lowPassNode);
+          osc.start(now);
+          osc.stop(now + 1.7);
+        });
+      }
+
+      startCelestialMusic() {
+        if (this.isMusicPlaying) return;
+        this.isMusicPlaying = true;
+        this.musicGain = this.ctx.createGain();
+        this.musicGain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+        this.musicGain.connect(this.lowPassNode);
+
+        // Ambient pentatonic arpeggio (C, D, E, G, A)
+        const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 659.25];
+        let noteIndex = 0;
+
+        const playArpNote = () => {
+          if (!this.ctx || this.muted) {
+            setTimeout(playArpNote, 280);
+            return;
+          }
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'sine';
+          const freq = scale[noteIndex % scale.length];
+          noteIndex = (noteIndex + 1 + Math.floor(Math.random() * 2)) % scale.length;
+
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.12, now + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+          osc.connect(gain);
+          gain.connect(this.musicGain);
+          osc.start(now);
+          osc.stop(now + 1.3);
+
+          setTimeout(playArpNote, 280 + Math.random() * 100);
+        };
+
+        playArpNote();
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        if (this.masterGain && this.ctx) {
+          this.masterGain.gain.setValueAtTime(this.muted ? 0 : 0.7, this.ctx.currentTime);
+        }
+        return this.muted;
+      }
+    }
+
+    const audio = new AudioEngine();
+
+    function toggleAudio() {
+      audio.init();
+      const isMuted = audio.toggleMute();
+      document.getElementById('audioToggle').textContent = isMuted ? '??' : '??';
+    }
+
+    /* ==========================================================================
+       GAME STATE & GLOBAL CONSTANTS
+       ========================================================================== */
+    const STANCE = {
+      RADIANCE: 0,
+      SOLITUDE: 1,
+      GRACE: 2
+    };
+
+    const Game = {
+      state: 'START', // 'START', 'PLAYING', 'PAUSED', 'GAMEOVER'
+      wave: 1,
+      score: 0,
+      combo: 0,
+      comboTimer: 0,
+      dawnGauge: 0, // 0 to 100 (Sanctum Dawn ready at 100)
+      timeScale: 1.0,
+      isBulletTime: false,
+      shake: 0,
+      camera: { x: 0, y: 0, targetX: 0, targetY: 0 },
+      keys: {},
+      mouse: { x: width / 2, y: height / 2, down: false },
+      touchDir: 0,
+      touchJump: false,
+      touchDash: false,
+      touchShoot: false,
+      entities: {
+        player: null,
+        arrows: [],
+        enemies: [],
+        particles: [],
+        decoys: [],
+        shockwaves: [],
+        damageTexts: []
+      },
+      platforms: [],
+      worldWidth: 3200,
+      worldHeight: 1200
+    };
+
+    /* ==========================================================================
+       CLOTH SIMULATION & PROCEDURAL ARCHER PRINCESS
+       ========================================================================== */
+    class SilkVerletRibbon {
+      constructor(pointsCount, segmentLength, stiffness = 0.8) {
+        this.pointsCount = pointsCount;
+        this.segmentLength = segmentLength;
+        this.stiffness = stiffness;
+        this.points = [];
+        for (let i = 0; i < pointsCount; i++) {
+          this.points.push({ x: 0, y: 0, oldX: 0, oldY: 0 });
+        }
+      }
+
+      init(startX, startY) {
+        for (let p of this.points) {
+          p.x = startX;
+          p.y = startY;
+          p.oldX = startX;
+          p.oldY = startY;
+        }
+      }
+
+      update(pinX, pinY, windX = 0, windY = 0) {
+        this.points[0].x = pinX;
+        this.points[0].y = pinY;
+
+        for (let i = 1; i < this.points.length; i++) {
+          const p = this.points[i];
+          const vx = (p.x - p.oldX) * 0.88 + windX;
+          const vy = (p.y - p.oldY) * 0.88 + 0.35 + windY; // gentle gravity
+
+          p.oldX = p.x;
+          p.oldY = p.y;
+          p.x += vx;
+          p.y += vy;
+        }
+
+        // Distance constraint passes
+        for (let iter = 0; iter < 3; iter++) {
+          this.points[0].x = pinX;
+          this.points[0].y = pinY;
+          for (let i = 0; i < this.points.length - 1; i++) {
+            const p1 = this.points[i];
+            const p2 = this.points[i + 1];
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dist = Math.hypot(dx, dy) || 0.001;
+            const diff = (dist - this.segmentLength) / dist;
+            p2.x -= dx * 0.5 * diff;
+            p2.y -= dy * 0.5 * diff;
+          }
+        }
+      }
+
+      drawRibbon(ctx, fillColor, strokeColor, startWidth = 14, endWidth = 2) {
+        if (this.points.length < 2) return;
+        ctx.save();
+        ctx.fillStyle = fillColor;
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 1.2;
+
+        ctx.beginPath();
+        // Forward contour with width taper
+        for (let i = 0; i < this.points.length; i++) {
+          const p = this.points[i];
+          const next = this.points[Math.min(i + 1, this.points.length - 1)];
+          const angle = Math.atan2(next.y - p.y, next.x - p.x) + Math.PI / 2;
+          const currentW = startWidth - (startWidth - endWidth) * (i / (this.points.length - 1));
+          const nx = p.x + Math.cos(angle) * (currentW * 0.5);
+          const ny = p.y + Math.sin(angle) * (currentW * 0.5);
+          if (i === 0) ctx.moveTo(nx, ny);
+          else ctx.lineTo(nx, ny);
+        }
+        // Backward contour
+        for (let i = this.points.length - 1; i >= 0; i--) {
+          const p = this.points[i];
+          const next = this.points[Math.min(i + 1, this.points.length - 1)];
+          const angle = Math.atan2(next.y - p.y, next.x - p.x) - Math.PI / 2;
+          const currentW = startWidth - (startWidth - endWidth) * (i / (this.points.length - 1));
+          const nx = p.x + Math.cos(angle) * (currentW * 0.5);
+          const ny = p.y + Math.sin(angle) * (currentW * 0.5);
+          ctx.lineTo(nx, ny);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    class Player {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = 0;
+        this.vy = 0;
+        this.radius = 22;
+        this.hp = 100;
+        this.maxHp = 100;
+        this.facing = 1; // 1 = right, -1 = left
+        this.onGround = false;
+        this.jumpsLeft = 2;
+        this.maxJumps = 2;
+        this.currentStance = STANCE.RADIANCE;
+
+        // Dash & i-frames
+        this.isDashing = false;
+        this.dashCooldown = 0;
+        this.dashTimer = 0;
+        this.invincibleTimer = 0;
+
+        // Bow mechanics
+        this.drawCharge = 0;
+        this.isDrawing = false;
+        this.aimAngle = 0;
+        this.fireCooldown = 0;
+
+        // Zephyr / Bullet Time Stamina
+        this.zephyr = 100;
+        this.maxZephyr = 100;
+
+        // EX Active
+        this.exLaserActive = 0;
+
+        // Multi-point Cloth Simulation (Dress layers, Fluttering sleeves, Ribbon hair)
+        this.dressLayers = [
+          new SilkVerletRibbon(7, 9, 0.85),
+          new SilkVerletRibbon(6, 10, 0.8),
+          new SilkVerletRibbon(8, 8, 0.9)
+        ];
+        this.sleeveRibbon = new SilkVerletRibbon(5, 7, 0.75);
+        this.hairRibbon = new SilkVerletRibbon(6, 6, 0.7);
+
+        this.dressLayers.forEach(l => l.init(this.x, this.y));
+        this.sleeveRibbon.init(this.x, this.y);
+        this.hairRibbon.init(this.x, this.y);
+
+        this.flutterPhase = 0;
+      }
+
+      update(dt) {
+        this.flutterPhase += dt * 8;
+
+        // Ground check against platforms
+        this.onGround = false;
+        for (const plat of Game.platforms) {
+          if (
+            this.x + this.radius * 0.6 > plat.x &&
+            this.x - this.radius * 0.6 < plat.x + plat.w &&
+            this.y + this.radius >= plat.y &&
+            this.y - this.radius <= plat.y + 16 &&
+            this.vy >= 0
+          ) {
+            this.y = plat.y - this.radius;
+            this.vy = 0;
+            this.onGround = true;
+            this.jumpsLeft = this.maxJumps;
+            break;
+          }
+        }
+
+        // Horizontal Movement Input
+        let moveInput = 0;
+        if (Game.keys['KeyA'] || Game.keys['ArrowLeft'] || Game.touchDir < -0.2) moveInput -= 1;
+        if (Game.keys['KeyD'] || Game.keys['ArrowRight'] || Game.touchDir > 0.2) moveInput += 1;
+
+        // Dashing Logic
+        if (this.dashCooldown > 0) this.dashCooldown -= dt;
+        if (this.invincibleTimer > 0) this.invincibleTimer -= dt;
+
+        if (this.isDashing) {
+          this.dashTimer -= dt;
+          this.vx = this.facing * 820;
+          this.vy = 0; // maintain horizontal glide during dash
+
+          // Spawn silk ghost particles
+          if (Math.random() < 0.6) {
+            Game.entities.particles.push(new Particle(
+              this.x + (Math.random() - 0.5) * 14,
+              this.y + (Math.random() - 0.5) * 20,
+              -this.facing * 60,
+              (Math.random() - 0.5) * 20,
+              'rgba(255, 240, 200, 0.6)',
+              0.3,
+              7,
+              'silk'
+            ));
+          }
+
+          if (this.dashTimer <= 0) {
+            this.isDashing = false;
+          }
+        } else {
+          // Standard glide & run
+          const accel = this.onGround ? 2200 : 1600;
+          const maxSpeed = 340;
+          if (moveInput !== 0) {
+            this.vx += moveInput * accel * dt;
+            if (Math.abs(this.vx) > maxSpeed) this.vx = Math.sign(this.vx) * maxSpeed;
+            if (!this.isDrawing) this.facing = Math.sign(moveInput);
+          } else {
+            // Smooth friction glide
+            this.vx *= Math.pow(this.onGround ? 0.001 : 0.25, dt);
+          }
+
+          // Gravity (gentler float in air if jumping/gliding)
+          const gravity = (this.vy > 0 && !this.onGround) ? 1100 : 1400;
+          this.vy += gravity * dt;
+        }
+
+        // Apply velocities
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        // Boundaries
+        this.x = Math.max(this.radius, Math.min(Game.worldWidth - this.radius, this.x));
+        if (this.y > Game.worldHeight + 200) {
+          // Fallen into the abyss: respawn on nearest platform
+          this.hp -= 25;
+          this.y = 300;
+          this.x = Math.max(100, this.x - 200);
+          this.vy = 0;
+          Game.shake = 12;
+        }
+
+        // Aiming calculations
+        const mouseWorldX = Game.mouse.x + Game.camera.x;
+        const mouseWorldY = Game.mouse.y + Game.camera.y;
+        this.aimAngle = Math.atan2(mouseWorldY - (this.y - 10), mouseWorldX - this.x);
+        if (Math.abs(Math.cos(this.aimAngle)) > 0.2) {
+          this.facing = Math.cos(this.aimAngle) >= 0 ? 1 : -1;
+        }
+
+        // Mid-Air Bullet Time & Bow Draw
+        const wantShoot = Game.mouse.down || Game.keys['KeyJ'] || Game.touchShoot;
+        if (this.fireCooldown > 0) this.fireCooldown -= dt;
+
+        if (wantShoot && this.fireCooldown <= 0) {
+          this.isDrawing = true;
+          const chargeSpeed = (this.currentStance === STANCE.SOLITUDE) ? 1.6 : 3.0;
+          this.drawCharge = Math.min(1.0, this.drawCharge + dt * chargeSpeed);
+
+          // Activate Mid-Air Bullet Time if airborne
+          if (!this.onGround && this.zephyr > 5) {
+            Game.isBulletTime = true;
+            this.zephyr = Math.max(0, this.zephyr - dt * 28);
+            // Gliding float in air
+            this.vy = Math.min(this.vy, 45);
+          } else {
+            Game.isBulletTime = false;
+          }
+        } else {
+          // Release arrow if drawn
+          if (this.isDrawing && this.drawCharge > 0.15) {
+            this.shootArrow();
+          }
+          this.isDrawing = false;
+          this.drawCharge = 0;
+          Game.isBulletTime = false;
+
+          // Regenerate Zephyr when not in slow-mo
+          if (this.zephyr < this.maxZephyr) {
+            this.zephyr = Math.min(this.maxZephyr, this.zephyr + dt * (this.onGround ? 45 : 18));
+          }
+        }
+
+        // EX Skill Laser Duration
+        if (this.exLaserActive > 0) {
+          this.exLaserActive -= dt;
+          this.performExDamage();
+        }
+
+        // Update Cloth Physics Anchors
+        const windBase = -this.vx * 0.03 + Math.sin(this.flutterPhase) * 1.5;
+        const windSleeve = -this.vx * 0.02 + Math.cos(this.flutterPhase * 1.2) * 1.2;
+
+        // Dress Ribbons anchored at hip
+        this.dressLayers[0].update(this.x - this.facing * 4, this.y + 2, windBase - 1, 0.2);
+        this.dressLayers[1].update(this.x - this.facing * 8, this.y + 4, windBase * 1.2 - 2, 0.4);
+        this.dressLayers[2].update(this.x, this.y + 6, windBase * 0.9, 0.3);
+
+        // Fluttering silk sleeve anchored at shoulder
+        this.sleeveRibbon.update(this.x - this.facing * 8, this.y - 12, windSleeve - this.facing * 2, 0.1);
+        // Fluttering hair ribbon anchored at head
+        this.hairRibbon.update(this.x - this.facing * 10, this.y - 28, windBase * 1.4 - this.facing * 3, -0.2);
+      }
+
+      jump() {
+        if (this.jumpsLeft > 0) {
+          this.vy = -540;
+          this.jumpsLeft--;
+          audio.playDash();
+
+          // Double jump gold silk burst
+          for (let i = 0; i < 9; i++) {
+            Game.entities.particles.push(new Particle(
+              this.x,
+              this.y + 15,
+              (Math.random() - 0.5) * 180,
+              Math.random() * 80 + 30,
+              'rgba(245, 215, 140, 0.8)',
+              0.45,
+              5,
+              'petal'
+            ));
+          }
+        }
+      }
+
+      dash() {
+        if (this.dashCooldown > 0 || this.isDashing) return;
+        this.isDashing = true;
+        this.dashTimer = 0.22;
+        this.dashCooldown = 0.5;
+        this.invincibleTimer = 0.28;
+        audio.playDash();
+
+        // Oath of Grace: Dash leaves an illusory silk decoy & fires 5-arrow fan spread
+        if (this.currentStance === STANCE.GRACE) {
+          Game.entities.decoys.push(new SilkDecoy(this.x, this.y, this.facing));
+          this.fireFanSpread();
+        }
+      }
+
+      fireFanSpread() {
+        audio.playBowTwang(1.4);
+        const baseAngle = this.aimAngle;
+        const spreadCount = 5;
+        for (let i = 0; i < spreadCount; i++) {
+          const offsetAngle = (i - (spreadCount - 1) / 2) * 0.16;
+          const finalAngle = baseAngle + offsetAngle;
+          Game.entities.arrows.push(new Arrow(
+            this.x,
+            this.y - 10,
+            finalAngle,
+            STANCE.GRACE,
+            0.85
+          ));
+        }
+      }
+
+      shootArrow() {
+        const stance = this.currentStance;
+        const charge = this.drawCharge;
+
+        if (stance === STANCE.RADIANCE) {
+          // Rapid-fire light arrow
+          this.fireCooldown = 0.16;
+          audio.playBowTwang(1.3);
+          Game.entities.arrows.push(new Arrow(this.x, this.y - 10, this.aimAngle, stance, charge));
+          addDawnGauge(4);
+        } else if (stance === STANCE.SOLITUDE) {
+          // Heavy solar lance
+          this.fireCooldown = 0.45;
+          audio.playBowTwang(0.7);
+          audio.playHeavyBlast();
+          Game.entities.arrows.push(new Arrow(this.x, this.y - 10, this.aimAngle, stance, charge));
+          // Recoil
+          this.vx -= Math.cos(this.aimAngle) * 220;
+          this.vy -= Math.sin(this.aimAngle) * 90;
+          Game.shake = 5;
+          addDawnGauge(8);
+        } else if (stance === STANCE.GRACE) {
+          // Precision silk arrow
+          this.fireCooldown = 0.24;
+          audio.playBowTwang(1.1);
+          Game.entities.arrows.push(new Arrow(this.x, this.y - 10, this.aimAngle, stance, charge));
+          addDawnGauge(5);
+        }
+      }
+
+      triggerEX() {
+        if (Game.dawnGauge < 100 || this.exLaserActive > 0) return;
+        Game.dawnGauge = 0;
+        this.exLaserActive = 1.2; // 1.2s screen laser duration
+        this.invincibleTimer = 1.4;
+        audio.playSanctumDawnBeam();
+        Game.shake = 18;
+
+        // Cinematic screen flash
+        const flash = document.getElementById('exFlashOverlay');
+        flash.style.opacity = '0.9';
+        setTimeout(() => { flash.style.opacity = '0'; }, 160);
+
+        // Huge sunburst burst particles
+        for (let i = 0; i < 45; i++) {
+          Game.entities.particles.push(new Particle(
+            this.x,
+            this.y - 10,
+            (Math.random() - 0.5) * 600,
+            (Math.random() - 0.5) * 600,
+            'rgba(255, 230, 150, 0.95)',
+            1.2,
+            12,
+            'light'
+          ));
+        }
+      }
+
+      performExDamage() {
+        // Full horizontal screen beam originating from player's bow
+        const beamY = this.y - 10;
+        const beamHeight = 90;
+        const beamDir = this.facing;
+
+        Game.shake = Math.max(Game.shake, 6);
+
+        // Continuous damage along beam path
+        for (const enemy of Game.entities.enemies) {
+          const inFront = beamDir > 0 ? (enemy.x >= this.x - 30) : (enemy.x <= this.x + 30);
+          if (inFront && Math.abs(enemy.y - beamY) < beamHeight * 0.75) {
+            enemy.takeDamage(12, 0, 0); // Continuous tick damage
+            if (Math.random() < 0.4) {
+              Game.entities.particles.push(new Particle(
+                enemy.x,
+                enemy.y,
+                (Math.random() - 0.5) * 200,
+                -Math.random() * 150,
+                'rgba(255, 80, 100, 0.9)',
+                0.5,
+                6,
+                'petal'
+              ));
+            }
+          }
+        }
+      }
+
+      takeDamage(amount) {
+        if (this.invincibleTimer > 0) return;
+        this.hp = Math.max(0, this.hp - amount);
+        this.invincibleTimer = 0.65;
+        Game.shake = 10;
+
+        if (this.hp <= 0) {
+          triggerGameOver();
+        }
+      }
+
+      draw(ctx) {
+        ctx.save();
+
+        // Invulnerability flicker
+        if (this.invincibleTimer > 0 && Math.floor(Date.now() / 50) % 2 === 0) {
+          ctx.globalAlpha = 0.45;
+        }
+
+        // Draw Flowing Back Dress Ribbons
+        this.dressLayers[1].drawRibbon(ctx, '#e4d5be', '#cbb386', 22, 6);
+        this.dressLayers[0].drawRibbon(ctx, '#fefbf4', '#e2cb9c', 28, 8);
+
+        // Draw Dark Cascading Hair Ribbon
+        this.hairRibbon.drawRibbon(ctx, '#1a1418', '#382b32', 14, 4);
+
+        // Draw Legs & White-Gold Embroidered Boots
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.facing, 1);
+
+        // Quiver on back with golden arrows
+        ctx.save();
+        ctx.translate(-10, -22);
+        ctx.rotate(-0.35);
+        ctx.fillStyle = '#f8f4ec';
+        ctx.strokeStyle = '#d4af37';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(-4, -20, 8, 28, 3);
+        ctx.fill();
+        ctx.stroke();
+        // Feather fletchings peeking out
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(-3, -22); ctx.lineTo(-6, -30); ctx.lineTo(0, -28);
+        ctx.moveTo(1, -22); ctx.lineTo(3, -31); ctx.lineTo(5, -26);
+        ctx.fill();
+        ctx.restore();
+
+        // Boots & Legs
+        ctx.fillStyle = '#fbf7ee';
+        ctx.strokeStyle = '#d4b35e';
+        ctx.lineWidth = 1.2;
+        // Back leg
+        ctx.beginPath();
+        ctx.roundRect(-8, 8, 7, 18, 3);
+        ctx.fill();
+        ctx.stroke();
+        // Front leg
+        ctx.beginPath();
+        ctx.roundRect(0, 10, 8, 17, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        // Main Layered Silk Robe Torso
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#e6c875';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-8, -14);
+        ctx.lineTo(8, -14);
+        ctx.lineTo(12, 10);
+        ctx.lineTo(-10, 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Gold floral waist cincher / sash
+        ctx.fillStyle = '#d4af37';
+        ctx.beginPath();
+        ctx.roundRect(-9, -2, 18, 5, 2);
+        ctx.fill();
+        // Lotus emblem on belt
+        ctx.fillStyle = '#ff7090';
+        ctx.beginPath();
+        ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Head & Floral Hair Ornaments
+        ctx.fillStyle = '#fdebd5'; // Soft porcelain complexion
+        ctx.beginPath();
+        ctx.arc(0, -26, 7.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dark hair styling
+        ctx.fillStyle = '#21191f';
+        ctx.beginPath();
+        ctx.arc(-1, -28, 8.2, Math.PI * 0.8, Math.PI * 2.2);
+        ctx.fill();
+        // Side bangs & hair bun
+        ctx.beginPath();
+        ctx.arc(-4, -32, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // White floral headpiece with ruby/gold accents
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(3, -32, 2.8, 0, Math.PI * 2);
+        ctx.arc(6, -30, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#d4af37';
+        ctx.beginPath();
+        ctx.arc(3, -32, 1, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore(); // restore local translation
+
+        // Draw Front Fluttering Sleeves
+        this.sleeveRibbon.drawRibbon(ctx, '#ffffff', '#e8d29b', 16, 4);
+        // Draw Front Skirt Cascade
+        this.dressLayers[2].drawRibbon(ctx, 'rgba(255, 255, 255, 0.95)', '#eed494', 24, 7);
+
+        // Draw The Ornate Feathered Bow with 3 Pulsating Ruby Sun Cores
+        this.drawFeatheredBow(ctx);
+
+        // Draw EX Screen-Wide Sunbeam if active
+        if (this.exLaserActive > 0) {
+          this.drawExBeam(ctx);
+        }
+
+        ctx.restore();
+      }
+
+      drawFeatheredBow(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y - 10);
+        ctx.rotate(this.aimAngle);
+
+        const bowRadius = 38;
+        const stringPull = this.isDrawing ? -18 * this.drawCharge : 0;
+        const pulse = Math.sin(Date.now() * 0.008) * 0.15 + 0.85;
+
+        // Bow limbs (Carved white feather wings + Gold filigree)
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = '#e8d085';
+        ctx.fillStyle = '#ffffff';
+
+        // Upper Limb
+        ctx.beginPath();
+        ctx.moveTo(8, -bowRadius * 0.2);
+        ctx.quadraticCurveTo(18, -bowRadius * 0.7, 4, -bowRadius);
+        ctx.quadraticCurveTo(12, -bowRadius * 0.7, 8, -bowRadius * 0.2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Lower Limb
+        ctx.beginPath();
+        ctx.moveTo(8, bowRadius * 0.2);
+        ctx.quadraticCurveTo(18, bowRadius * 0.7, 4, bowRadius);
+        ctx.quadraticCurveTo(12, bowRadius * 0.7, 8, bowRadius * 0.2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Wing feathers fan at tips
+        ctx.fillStyle = '#fdfcf9';
+        ctx.strokeStyle = '#d4af37';
+        ctx.lineWidth = 1;
+        [-bowRadius, bowRadius].forEach(tipY => {
+          ctx.beginPath();
+          ctx.ellipse(3, tipY, 7, 3.5, tipY < 0 ? -0.4 : 0.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+
+        // 3 Pulsating Ruby Sun Cores along bow riser
+        const corePositions = [
+          { x: 12, y: -bowRadius * 0.55 },
+          { x: 14, y: 0 },
+          { x: 12, y: bowRadius * 0.55 }
+        ];
+
+        corePositions.forEach((pos, idx) => {
+          // Gold sunburst ring
+          ctx.strokeStyle = '#f5c345';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, 4.5, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Ruby core
+          const rubyGrad = ctx.createRadialGradient(pos.x, pos.y, 1, pos.x, pos.y, 4);
+          rubyGrad.addColorStop(0, '#ff8090');
+          rubyGrad.addColorStop(0.5, '#e61e40');
+          rubyGrad.addColorStop(1, '#660515');
+          ctx.fillStyle = rubyGrad;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, 3.2 * pulse, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Core glow
+          ctx.shadowColor = '#ff2b55';
+          ctx.shadowBlur = 8 * pulse;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, 1.8, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        });
+
+        // Glowing Bowstring
+        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = 'rgba(255, 235, 170, 0.85)';
+        ctx.beginPath();
+        ctx.moveTo(4, -bowRadius);
+        ctx.lineTo(stringPull, 0);
+        ctx.lineTo(4, bowRadius);
+        ctx.stroke();
+
+        // Drawn arrow when charging
+        if (this.isDrawing && this.drawCharge > 0.1) {
+          const arrowLen = 42;
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = this.currentStance === STANCE.SOLITUDE ? '#ff8c3b' : '#ffea7a';
+          ctx.fillStyle = '#ffffff';
+
+          // Arrow shaft
+          ctx.beginPath();
+          ctx.moveTo(stringPull, 0);
+          ctx.lineTo(stringPull + arrowLen, 0);
+          ctx.stroke();
+
+          // Arrowhead
+          ctx.beginPath();
+          ctx.moveTo(stringPull + arrowLen + 6, 0);
+          ctx.lineTo(stringPull + arrowLen - 2, -4);
+          ctx.lineTo(stringPull + arrowLen - 2, 4);
+          ctx.closePath();
+          ctx.fill();
+
+          // Arrow glow particles
+          ctx.shadowColor = '#ffd060';
+          ctx.shadowBlur = 10 * this.drawCharge;
+          ctx.beginPath();
+          ctx.arc(stringPull + arrowLen + 3, 0, 3 * this.drawCharge, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+
+        ctx.restore();
+      }
+
+      drawExBeam(ctx) {
+        ctx.save();
+        const startX = this.x;
+        const startY = this.y - 10;
+        const dir = this.facing;
+        const beamLength = 2400;
+        const endX = startX + dir * beamLength;
+
+        // Core divine sunbeam
+        const beamGrad = ctx.createLinearGradient(0, startY - 50, 0, startY + 50);
+        beamGrad.addColorStop(0, 'rgba(255, 240, 180, 0)');
+        beamGrad.addColorStop(0.2, 'rgba(255, 210, 80, 0.7)');
+        beamGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.98)');
+        beamGrad.addColorStop(0.8, 'rgba(255, 210, 80, 0.7)');
+        beamGrad.addColorStop(1, 'rgba(255, 240, 180, 0)');
+
+        ctx.fillStyle = beamGrad;
+        ctx.fillRect(dir > 0 ? startX : endX, startY - 45, beamLength, 90);
+
+        // Brilliant inner core
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(dir > 0 ? startX : endX, startY - 10, beamLength, 20);
+
+        // Radiant light rings
+        for (let r = 50; r < beamLength; r += 220) {
+          const rx = startX + dir * r;
+          ctx.strokeStyle = 'rgba(255, 250, 210, 0.6)';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.ellipse(rx, startY, 18, 60, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       ARROWS, EXPLOSIONS, DECOYS & PARTICLES
+       ========================================================================== */
+    class Arrow {
+      constructor(x, y, angle, stance, charge = 1.0) {
+        this.x = x;
+        this.y = y;
+        this.angle = angle;
+        this.stance = stance;
+        this.charge = charge;
+        this.speed = (stance === STANCE.SOLITUDE ? 1150 : 1450) * (0.7 + charge * 0.4);
+        this.vx = Math.cos(angle) * this.speed;
+        this.vy = Math.sin(angle) * this.speed;
+        this.radius = stance === STANCE.SOLITUDE ? 8 : 4;
+        this.life = 2.0;
+        this.pierce = (stance === STANCE.RADIANCE) ? 2 : 1;
+        this.trail = [];
+      }
+
+      update(dt) {
+        this.trail.unshift({ x: this.x, y: this.y });
+        if (this.trail.length > 7) this.trail.pop();
+
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.life -= dt;
+
+        // Slight gravity on longer flight
+        this.vy += 80 * dt;
+        this.angle = Math.atan2(this.vy, this.vx);
+
+        return this.life > 0 && this.pierce > 0;
+      }
+
+      draw(ctx) {
+        ctx.save();
+        // Ribbon / Light Trail
+        if (this.trail.length > 1) {
+          ctx.beginPath();
+          ctx.moveTo(this.trail[0].x, this.trail[0].y);
+          for (let i = 1; i < this.trail.length; i++) {
+            ctx.lineTo(this.trail[i].x, this.trail[i].y);
+          }
+          const trailColor = this.stance === STANCE.SOLITUDE ?
+            'rgba(255, 120, 50, 0.4)' : 'rgba(255, 230, 120, 0.5)';
+          ctx.strokeStyle = trailColor;
+          ctx.lineWidth = this.radius * 1.5;
+          ctx.lineCap = 'round';
+          ctx.stroke();
+        }
+
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+
+        // Arrow head & body
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = this.stance === STANCE.SOLITUDE ? '#ff6622' : '#f5c345';
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.moveTo(14, 0);
+        ctx.lineTo(-18, -3.5);
+        ctx.lineTo(-12, 0);
+        ctx.lineTo(-18, 3.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    class SilkDecoy {
+      constructor(x, y, facing) {
+        this.x = x;
+        this.y = y;
+        this.facing = facing;
+        this.life = 2.4;
+        this.maxLife = 2.4;
+        this.detonated = false;
+      }
+
+      update(dt) {
+        this.life -= dt;
+        if (this.life <= 0 && !this.detonated) {
+          this.detonate();
+        }
+        return this.life > 0;
+      }
+
+      detonate() {
+        this.detonated = true;
+        audio.playHeavyBlast();
+        Game.shake = 8;
+        // Shockwave damages nearby enemies
+        Game.entities.shockwaves.push(new Shockwave(this.x, this.y, 140, '#ffd880'));
+
+        for (const enemy of Game.entities.enemies) {
+          const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+          if (dist < 150) {
+            enemy.takeDamage(45, (enemy.x - this.x) * 4, -120);
+          }
+        }
+
+        // Blossom into silk and lotus petals
+        for (let i = 0; i < 28; i++) {
+          Game.entities.particles.push(new Particle(
+            this.x,
+            this.y,
+            (Math.random() - 0.5) * 320,
+            (Math.random() - 0.5) * 320,
+            'rgba(255, 180, 210, 0.9)',
+            0.8,
+            8,
+            'petal'
+          ));
+        }
+      }
+
+      draw(ctx) {
+        ctx.save();
+        const alpha = Math.min(1.0, this.life / 0.8) * 0.7;
+        ctx.globalAlpha = alpha;
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.facing, 1);
+
+        // Shimmering white-gold silhouette
+        ctx.fillStyle = 'rgba(255, 245, 220, 0.4)';
+        ctx.strokeStyle = 'rgba(245, 210, 110, 0.8)';
+        ctx.lineWidth = 1.5;
+
+        ctx.beginPath();
+        ctx.arc(0, -26, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(-10, -16);
+        ctx.lineTo(10, -16);
+        ctx.lineTo(16, 20);
+        ctx.lineTo(-14, 20);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Pulsing lotus crest
+        ctx.fillStyle = '#ff7b9f';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    class Shockwave {
+      constructor(x, y, maxRadius, color = '#ffd269') {
+        this.x = x;
+        this.y = y;
+        this.radius = 8;
+        this.maxRadius = maxRadius;
+        this.color = color;
+        this.life = 0.35;
+        this.maxLife = 0.35;
+      }
+
+      update(dt) {
+        this.life -= dt;
+        this.radius += (this.maxRadius - this.radius) * (dt * 14);
+        return this.life > 0;
+      }
+
+      draw(ctx) {
+        ctx.save();
+        const alpha = (this.life / this.maxLife);
+        ctx.strokeStyle = this.color;
+        ctx.globalAlpha = alpha * 0.8;
+        ctx.lineWidth = 4 * alpha;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    class Particle {
+      constructor(x, y, vx, vy, color, life, size = 4, type = 'spark') {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.color = color;
+        this.life = life;
+        this.maxLife = life;
+        this.size = size;
+        this.type = type; // 'spark', 'petal', 'silk', 'light'
+        this.rotation = Math.random() * Math.PI * 2;
+        this.rotSpeed = (Math.random() - 0.5) * 6;
+      }
+
+      update(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.rotation += this.rotSpeed * dt;
+
+        if (this.type === 'petal') {
+          this.vx *= 0.98;
+          this.vy += 40 * dt; // gentle flutter
+        } else if (this.type === 'spark') {
+          this.vx *= 0.94;
+          this.vy += 220 * dt;
+        }
+
+        this.life -= dt;
+        return this.life > 0;
+      }
+
+      draw(ctx) {
+        ctx.save();
+        const progress = this.life / this.maxLife;
+        ctx.globalAlpha = Math.max(0, progress);
+        ctx.fillStyle = this.color;
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+
+        if (this.type === 'petal') {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, this.size, this.size * 0.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (this.type === 'silk') {
+          ctx.strokeStyle = this.color;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(-this.size, 0);
+          ctx.quadraticCurveTo(0, this.size * 0.6, this.size, 0);
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, this.size * progress, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    class DamageNumber {
+      constructor(x, y, text, isCrit = false) {
+        this.x = x + (Math.random() - 0.5) * 20;
+        this.y = y - 10;
+        this.text = text;
+        this.isCrit = isCrit;
+        this.life = 0.75;
+        this.vy = -75;
+      }
+
+      update(dt) {
+        this.y += this.vy * dt;
+        this.vy *= 0.92;
+        this.life -= dt;
+        return this.life > 0;
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1.0, this.life / 0.3);
+        ctx.font = this.isCrit ? 'bold 18px Cinzel, serif' : 'bold 14px "Plus Jakarta Sans", sans-serif';
+        ctx.fillStyle = this.isCrit ? '#ff4055' : '#ffea85';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.5;
+        ctx.strokeText(this.text, this.x, this.y);
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       ENEMIES: VOID SHADOW HOUNDS, GILDED BRUTES & ECLIPSE WRAITHS
+       ========================================================================== */
+    class Enemy {
+      constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.type = type;
+        this.vx = 0;
+        this.vy = 0;
+        this.facing = 1;
+        this.hitFlash = 0;
+
+        if (type === 'hound') {
+          this.radius = 20;
+          this.maxHp = 45;
+          this.speed = 220;
+          this.damage = 12;
+        } else if (type === 'brute') {
+          this.radius = 34;
+          this.maxHp = 160;
+          this.speed = 105;
+          this.damage = 26;
+          this.slamCooldown = 2.5;
+        } else if (type === 'wraith') {
+          this.radius = 22;
+          this.maxHp = 55;
+          this.speed = 170;
+          this.damage = 16;
+          this.shootCooldown = 2.0;
+        }
+        this.hp = this.maxHp;
+      }
+
+      update(dt) {
+        if (this.hitFlash > 0) this.hitFlash -= dt;
+        const player = Game.entities.player;
+        if (!player) return true;
+
+        // AI Aggro: Check for active decoy first, else target player
+        let targetX = player.x;
+        let targetY = player.y;
+
+        if (Game.entities.decoys.length > 0) {
+          const decoy = Game.entities.decoys[0];
+          targetX = decoy.x;
+          targetY = decoy.y;
+        }
+
+        const dx = targetX - this.x;
+        const dy = targetY - this.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        this.facing = dx >= 0 ? 1 : -1;
+
+        if (this.type === 'hound') {
+          // Fast ground pouncer
+          this.vx = Math.sign(dx) * this.speed;
+          this.vy += 1200 * dt; // gravity
+
+          // Melee bite if near player
+          if (dist < this.radius + player.radius) {
+            player.takeDamage(this.damage);
+            this.vx = -this.facing * 180;
+          }
+        } else if (this.type === 'brute') {
+          // Armored walking tank with ground slam
+          this.vx = Math.sign(dx) * this.speed;
+          this.vy += 1400 * dt;
+
+          this.slamCooldown -= dt;
+          if (this.slamCooldown <= 0 && dist < 140) {
+            this.slamCooldown = 3.2;
+            audio.playHeavyBlast();
+            Game.shake = 9;
+            Game.entities.shockwaves.push(new Shockwave(this.x, this.y + 20, 160, '#ff9040'));
+            if (dist < 130) {
+              player.takeDamage(this.damage);
+              player.vy = -340;
+            }
+          }
+        } else if (this.type === 'wraith') {
+          // Aerial flyer hovering at altitude
+          const desiredAltitude = targetY - 140;
+          this.vy += (desiredAltitude - this.y) * 4.0 * dt;
+          this.vx += (targetX - this.x) * 1.5 * dt;
+          this.vx = Math.max(-this.speed, Math.min(this.speed, this.vx));
+
+          this.shootCooldown -= dt;
+          if (this.shootCooldown <= 0 && dist < 600) {
+            this.shootCooldown = 2.4;
+            // Dark bolt toward player
+            const angle = Math.atan2(player.y - this.y, player.x - this.x);
+            Game.entities.particles.push(new Particle(
+              this.x,
+              this.y,
+              Math.cos(angle) * 320,
+              Math.sin(angle) * 320,
+              'rgba(140, 40, 255, 0.9)',
+              1.8,
+              7,
+              'spark'
+            ));
+          }
+        }
+
+        // Platform collisions for ground units
+        if (this.type !== 'wraith') {
+          for (const plat of Game.platforms) {
+            if (
+              this.x + this.radius > plat.x &&
+              this.x - this.radius < plat.x + plat.w &&
+              this.y + this.radius >= plat.y &&
+              this.y - this.radius <= plat.y + 20 &&
+              this.vy >= 0
+            ) {
+              this.y = plat.y - this.radius;
+              this.vy = 0;
+              break;
+            }
+          }
+        }
+
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        return this.hp > 0;
+      }
+
+      takeDamage(amount, knockX = 0, knockY = 0) {
+        this.hp -= amount;
+        this.hitFlash = 0.12;
+        this.vx += knockX;
+        this.vy += knockY;
+        audio.playHitConfirm();
+
+        addCombo();
+        Game.entities.damageTexts.push(new DamageNumber(this.x, this.y, Math.round(amount), amount > 35));
+
+        if (this.hp <= 0) {
+          this.onDefeated();
+        }
+      }
+
+      onDefeated() {
+        Game.score += (this.type === 'brute' ? 300 : (this.type === 'wraith' ? 200 : 100));
+        addDawnGauge(12);
+
+        // Death particle burst
+        const particleCount = this.type === 'brute' ? 30 : 16;
+        for (let i = 0; i < particleCount; i++) {
+          Game.entities.particles.push(new Particle(
+            this.x,
+            this.y,
+            (Math.random() - 0.5) * 280,
+            (Math.random() - 0.5) * 280,
+            this.type === 'hound' ? 'rgba(70, 30, 100, 0.9)' : 'rgba(255, 210, 100, 0.9)',
+            0.6,
+            7,
+            'petal'
+          ));
+        }
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.facing, 1);
+
+        if (this.hitFlash > 0) {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(0, 0, this.radius * 1.1, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          return;
+        }
+
+        if (this.type === 'hound') {
+          // Void Shadow Hound (Dark quadruped with glowing violet eyes)
+          ctx.fillStyle = '#1c132b';
+          ctx.strokeStyle = '#6d3ab0';
+          ctx.lineWidth = 1.5;
+
+          // Body
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 22, 12, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Head & Jaws
+          ctx.beginPath();
+          ctx.moveTo(12, -6);
+          ctx.lineTo(24, 0);
+          ctx.lineTo(16, 8);
+          ctx.closePath();
+          ctx.fill();
+
+          // Glowing eye
+          ctx.fillStyle = '#d946ef';
+          ctx.beginPath();
+          ctx.arc(15, -2, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Shadow legs
+          ctx.strokeStyle = '#1c132b';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(-12, 6); ctx.lineTo(-14, 18);
+          ctx.moveTo(8, 6); ctx.lineTo(10, 18);
+          ctx.stroke();
+
+        } else if (this.type === 'brute') {
+          // Gilded Ruin Brute (Heavy stone colossus with gold filigree)
+          ctx.fillStyle = '#2c2538';
+          ctx.strokeStyle = '#c5a059';
+          ctx.lineWidth = 2.5;
+
+          // Huge torso
+          ctx.beginPath();
+          ctx.roundRect(-24, -30, 48, 54, 10);
+          ctx.fill();
+          ctx.stroke();
+
+          // Glowing runic core
+          ctx.fillStyle = '#f59e0b';
+          ctx.beginPath();
+          ctx.arc(0, -6, 9, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Stone fist
+          ctx.fillStyle = '#3a3147';
+          ctx.beginPath();
+          ctx.arc(18, 12, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+        } else if (this.type === 'wraith') {
+          // Eclipse Wraith (Winged dark specter)
+          ctx.fillStyle = '#1a102f';
+          ctx.strokeStyle = '#a855f7';
+          ctx.lineWidth = 1.8;
+
+          ctx.beginPath();
+          ctx.moveTo(0, -22);
+          ctx.lineTo(18, 16);
+          ctx.lineTo(0, 8);
+          ctx.lineTo(-18, 16);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Glowing violet visor
+          ctx.fillStyle = '#c084fc';
+          ctx.beginPath();
+          ctx.ellipse(2, -6, 6, 2.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Small Health Bar over head
+        const barW = 32;
+        const hpPct = Math.max(0, this.hp / this.maxHp);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(-barW / 2, -this.radius - 14, barW, 4);
+        ctx.fillStyle = hpPct > 0.4 ? '#eab308' : '#ef4444';
+        ctx.fillRect(-barW / 2, -this.radius - 14, barW * hpPct, 4);
+
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       WORLD, PLATFORMS & MYSTICAL SKY RUINS
+       ========================================================================== */
+    function initWorld() {
+      Game.platforms = [];
+
+      // Main ground platform
+      Game.platforms.push({ x: 0, y: 880, w: Game.worldWidth, h: 320 });
+
+      // Floating mystical sky ruins platforms
+      const ruinPlatforms = [
+        { x: 300, y: 720, w: 280, h: 24 },
+        { x: 700, y: 620, w: 320, h: 24 },
+        { x: 1150, y: 500, w: 260, h: 24 },
+        { x: 1550, y: 640, w: 360, h: 24 },
+        { x: 2050, y: 540, w: 300, h: 24 },
+        { x: 2500, y: 680, w: 320, h: 24 },
+        { x: 850, y: 360, w: 220, h: 20 },
+        { x: 1800, y: 380, w: 240, h: 20 }
+      ];
+
+      ruinPlatforms.forEach(p => Game.platforms.push(p));
+    }
+
+    function spawnWave(waveNum) {
+      Game.wave = waveNum;
+      document.getElementById('waveCounter').textContent = `WAVE ${waveNum}`;
+
+      const houndsCount = 4 + waveNum * 2;
+      const brutesCount = Math.floor(waveNum / 2) + 1;
+      const wraithsCount = 2 + Math.floor(waveNum * 1.5);
+
+      for (let i = 0; i < houndsCount; i++) {
+        const spawnX = Math.random() < 0.5 ? Math.random() * 400 : Game.worldWidth - Math.random() * 400;
+        Game.entities.enemies.push(new Enemy(spawnX, 840, 'hound'));
+      }
+      for (let i = 0; i < brutesCount; i++) {
+        const spawnX = 600 + Math.random() * 2000;
+        Game.entities.enemies.push(new Enemy(spawnX, 820, 'brute'));
+      }
+      for (let i = 0; i < wraithsCount; i++) {
+        const spawnX = 400 + Math.random() * 2400;
+        Game.entities.enemies.push(new Enemy(spawnX, 200 + Math.random() * 200, 'wraith'));
+
+      }
+    }
+
+    function addCombo() {
+      Game.combo++;
+      Game.comboTimer = 2.8;
+      const comboContainer = document.getElementById('comboContainer');
+      const comboText = document.getElementById('comboCount');
+      comboText.textContent = Game.combo;
+      comboContainer.style.opacity = '1';
+      comboContainer.style.transform = 'translateX(0px) scale(1.15)';
+      setTimeout(() => {
+        comboContainer.style.transform = 'translateX(0px) scale(1.0)';
+      }, 100);
+    }
+
+    function addDawnGauge(amount) {
+      Game.dawnGauge = Math.min(100, Game.dawnGauge + amount);
+      updateHud();
+    }
+
+    function setStance(stanceIndex) {
+      if (!Game.entities.player) return;
+      Game.entities.player.currentStance = stanceIndex;
+
+      // Update UI active states
+      [0, 1, 2].forEach(i => {
+        const btn = document.getElementById(`stanceBtn${i + 1}`);
+        if (i === stanceIndex) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+
+      // Stance shift chime
+      audio.playBowTwang(1.6 + stanceIndex * 0.3);
+    }
+
+    function updateHud() {
+      if (!Game.entities.player) return;
+      const p = Game.entities.player;
+
+      // HP
+      const hpPct = Math.max(0, (p.hp / p.maxHp) * 100);
+      document.getElementById('hpFill').style.width = `${hpPct}%`;
+      document.getElementById('hpText').textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
+
+      // Zephyr
+      const zephyrPct = (p.zephyr / p.maxZephyr) * 100;
+      document.getElementById('zephyrFill').style.width = `${zephyrPct}%`;
+
+      // Score
+      document.getElementById('scoreDisplay').textContent = `${Game.score} PTS`;
+
+      // Ruby Cores (EX)
+      const g = Game.dawnGauge;
+      const r0 = document.getElementById('rubyCore0');
+      const r1 = document.getElementById('rubyCore1');
+      const r2 = document.getElementById('rubyCore2');
+      const statusText = document.getElementById('exStatusText');
+
+      if (g >= 33) r0.classList.add('lit'); else r0.classList.remove('lit');
+      if (g >= 66) r1.classList.add('lit'); else r1.classList.remove('lit');
+      if (g >= 100) {
+        r2.classList.add('lit');
+        statusText.textContent = 'READY! [R]';
+        statusText.classList.add('text-rose-400', 'pulse-ready');
+      } else {
+        r2.classList.remove('lit');
+        statusText.textContent = `${Math.round(g)}% [R]`;
+        statusText.classList.remove('text-rose-400', 'pulse-ready');
+      }
+
+      // Bullet-time vignette
+      const btOverlay = document.getElementById('bulletTimeOverlay');
+      btOverlay.style.opacity = Game.isBulletTime ? '1' : '0';
+    }
+
+    /* ==========================================================================
+       PARALLAX BACKGROUND & RUINS RENDERING
+       ========================================================================== */
+    function drawBackground(ctx, camX, camY) {
+      // Celestial Dawn Sky Gradient
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
+      skyGrad.addColorStop(0, '#0f0a1c');
+      skyGrad.addColorStop(0.4, '#1b122e');
+      skyGrad.addColorStop(0.75, '#47223b');
+      skyGrad.addColorStop(1, '#caa268');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Distant Radiant Golden Sun
+      ctx.save();
+      const sunScreenX = width * 0.75 - camX * 0.02;
+      const sunScreenY = height * 0.35;
+      const sunGrad = ctx.createRadialGradient(sunScreenX, sunScreenY, 20, sunScreenX, sunScreenY, 180);
+      sunGrad.addColorStop(0, 'rgba(255, 245, 210, 0.9)');
+      sunGrad.addColorStop(0.3, 'rgba(255, 200, 110, 0.45)');
+      sunGrad.addColorStop(1, 'rgba(255, 180, 80, 0)');
+      ctx.fillStyle = sunGrad;
+      ctx.beginPath();
+      ctx.arc(sunScreenX, sunScreenY, 180, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Far Mountain Silhouettes & Clouds (0.05 parallax)
+      ctx.save();
+      ctx.fillStyle = '#21162e';
+      ctx.beginPath();
+      ctx.moveTo(0, height);
+      for (let x = 0; x <= width + 60; x += 60) {
+        const worldX = x + camX * 0.05;
+        const peakY = height * 0.65 - Math.sin(worldX * 0.002) * 60 - Math.cos(worldX * 0.005) * 35;
+        ctx.lineTo(x, peakY);
+      }
+      ctx.lineTo(width, height);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // Floating Ancient Marble Columns & Archways (0.2 parallax)
+      ctx.save();
+      ctx.fillStyle = '#2a1f3d';
+      const colSpacing = 380;
+      const colStart = Math.floor((camX * 0.2) / colSpacing) * colSpacing;
+      for (let cx = colStart - colSpacing; cx < colStart + width + colSpacing; cx += colSpacing) {
+        const screenColX = cx - camX * 0.2;
+        ctx.fillRect(screenColX, height * 0.45, 42, height * 0.55);
+        // Golden Capital details
+        ctx.fillStyle = '#6b4f2c';
+        ctx.fillRect(screenColX - 8, height * 0.45 - 8, 58, 12);
+        ctx.fillStyle = '#2a1f3d';
+      }
+      ctx.restore();
+    }
+
+    function drawPlatforms(ctx, camX, camY) {
+      for (const plat of Game.platforms) {
+        if (plat.x + plat.w < camX - 100 || plat.x > camX + width + 100) continue;
+
+        const px = plat.x - camX;
+        const py = plat.y - camY;
+
+        // Platform body (Weathered mystical marble & gold veins)
+        const platGrad = ctx.createLinearGradient(0, py, 0, py + plat.h);
+        platGrad.addColorStop(0, '#53435c');
+        platGrad.addColorStop(0.3, '#35283f');
+        platGrad.addColorStop(1, '#1e1626');
+        ctx.fillStyle = platGrad;
+        ctx.fillRect(px, py, plat.w, plat.h);
+
+        // Intricate top gold filigree trim
+        ctx.fillStyle = '#d4af37';
+        ctx.fillRect(px, py, plat.w, 3.5);
+
+        // Lotus ornaments on edges
+        ctx.fillStyle = '#f67280';
+        ctx.beginPath();
+        ctx.arc(px + 12, py + 2, 4, 0, Math.PI * 2);
+        ctx.arc(px + plat.w - 12, py + 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    /* ==========================================================================
+       MAIN GAME LOOP
+       ========================================================================== */
+    let lastTime = performance.now();
+
+    function gameLoop(now) {
+      requestAnimationFrame(gameLoop);
+
+      const rawDt = Math.min((now - lastTime) / 1000, 0.08);
+      lastTime = now;
+
+      if (Game.state !== 'PLAYING') return;
+
+      // Bullet Time Time-scale Lerp
+      const targetTimeScale = Game.isBulletTime ? 0.25 : 1.0;
+      Game.timeScale += (targetTimeScale - Game.timeScale) * 0.2;
+      const dt = rawDt * Game.timeScale;
+
+      audio.setSlowMoAudio(Game.isBulletTime);
+
+      // Camera Follow with Smooth Lerp
+      const p = Game.entities.player;
+      if (p) {
+        Game.camera.targetX = p.x - width * 0.4;
+        Game.camera.targetY = p.y - height * 0.55;
+      }
+      Game.camera.x += (Game.camera.targetX - Game.camera.x) * 0.12;
+      Game.camera.y += (Game.camera.targetY - Game.camera.y) * 0.12;
+      Game.camera.x = Math.max(0, Math.min(Game.worldWidth - width, Game.camera.x));
+      Game.camera.y = Math.max(-200, Math.min(Game.worldHeight - height + 100, Game.camera.y));
+
+      // Combo Decay
+      if (Game.comboTimer > 0) {
+        Game.comboTimer -= dt;
+        if (Game.comboTimer <= 0) {
+          Game.combo = 0;
+          document.getElementById('comboContainer').style.opacity = '0';
+        }
+      }
+
+      // Update Player
+      if (p) p.update(dt);
+
+      // Update Arrows
+      for (let i = Game.entities.arrows.length - 1; i >= 0; i--) {
+        const arrow = Game.entities.arrows[i];
+        const alive = arrow.update(dt);
+
+        // Arrow vs Enemy Collision
+        for (const enemy of Game.entities.enemies) {
+          const dist = Math.hypot(enemy.x - arrow.x, enemy.y - arrow.y);
+          if (dist < enemy.radius + arrow.radius) {
+            const isCrit = Math.random() < 0.25;
+            let damage = (arrow.stance === STANCE.SOLITUDE ? 75 : 22) * arrow.charge;
+            if (isCrit) damage *= 1.6;
+
+            enemy.takeDamage(
+              damage,
+              Math.cos(arrow.angle) * (arrow.stance === STANCE.SOLITUDE ? 380 : 120),
+              -80
+            );
+
+            // Oath of Solitude Shockwave Detonation
+            if (arrow.stance === STANCE.SOLITUDE) {
+              Game.entities.shockwaves.push(new Shockwave(arrow.x, arrow.y, 180, '#ff7040'));
+              for (const splashEnemy of Game.entities.enemies) {
+                if (splashEnemy !== enemy) {
+                  const sDist = Math.hypot(splashEnemy.x - arrow.x, splashEnemy.y - arrow.y);
+                  if (sDist < 160) {
+                    splashEnemy.takeDamage(35, (splashEnemy.x - arrow.x) * 2, -60);
+                  }
+                }
+              }
+            }
+
+            arrow.pierce--;
+            if (arrow.pierce <= 0) break;
+          }
+        }
+
+        if (!alive || arrow.pierce <= 0) {
+          Game.entities.arrows.splice(i, 1);
+        }
+      }
+
+      // Update Enemies
+      for (let i = Game.entities.enemies.length - 1; i >= 0; i--) {
+        const enemy = Game.entities.enemies[i];
+        const alive = enemy.update(dt);
+        if (!alive) {
+          Game.entities.enemies.splice(i, 1);
+        }
+      }
+
+      // Wave Progression: If all enemies defeated, trigger next wave
+      if (Game.entities.enemies.length === 0) {
+        spawnWave(Game.wave + 1);
+      }
+
+      // Update Decoys
+      for (let i = Game.entities.decoys.length - 1; i >= 0; i--) {
+        if (!Game.entities.decoys[i].update(dt)) {
+          Game.entities.decoys.splice(i, 1);
+        }
+      }
+
+      // Update Shockwaves
+      for (let i = Game.entities.shockwaves.length - 1; i >= 0; i--) {
+        if (!Game.entities.shockwaves[i].update(dt)) {
+          Game.entities.shockwaves.splice(i, 1);
+        }
+      }
+
+      // Update Particles
+      for (let i = Game.entities.particles.length - 1; i >= 0; i--) {
+        if (!Game.entities.particles[i].update(dt)) {
+          Game.entities.particles.splice(i, 1);
+        }
+      }
+
+      // Update Damage Texts
+      for (let i = Game.entities.damageTexts.length - 1; i >= 0; i--) {
+        if (!Game.entities.damageTexts[i].update(dt)) {
+          Game.entities.damageTexts.splice(i, 1);
+        }
+      }
+
+      // Screen Shake Decay
+      if (Game.shake > 0) {
+        Game.shake = Math.max(0, Game.shake - dt * 25);
+      }
+
+      updateHud();
+
+      /* ========================================================================
+         RENDER PASS
+         ======================================================================== */
+      ctx.save();
+
+      // Screen Shake offset
+      if (Game.shake > 0) {
+        const sx = (Math.random() - 0.5) * Game.shake;
+        const sy = (Math.random() - 0.5) * Game.shake;
+        ctx.translate(sx, sy);
+      }
+
+      // 1. Draw Parallax Dawn Background
+      drawBackground(ctx, Game.camera.x, Game.camera.y);
+
+      // 2. Camera Transform for World Objects
+      ctx.save();
+      ctx.translate(-Game.camera.x, -Game.camera.y);
+
+      // Draw Ancient Platforms
+      drawPlatforms(ctx, Game.camera.x, Game.camera.y);
+
+      // Draw Decoys
+      Game.entities.decoys.forEach(d => d.draw(ctx));
+
+      // Draw Shockwaves
+      Game.entities.shockwaves.forEach(s => s.draw(ctx));
+
+      // Draw Enemies
+      Game.entities.enemies.forEach(e => e.draw(ctx));
+
+      // Draw Player Heroine
+      if (p) p.draw(ctx);
+
+      // Draw Arrows
+      Game.entities.arrows.forEach(a => a.draw(ctx));
+
+      // Draw Particles & Petals
+      Game.entities.particles.forEach(pt => pt.draw(ctx));
+
+      // Draw Floating Damage Numbers
+      Game.entities.damageTexts.forEach(dtx => dtx.draw(ctx));
+
+      ctx.restore(); // end world camera transform
+
+      ctx.restore(); // end screen shake
+    }
+
+    /* ==========================================================================
+       USER INPUT, TOUCH & EVENT LISTENERS
+       ========================================================================== */
+    window.addEventListener('keydown', (e) => {
+      Game.keys[e.code] = true;
+
+      if (e.code === 'Digit1') setStance(STANCE.RADIANCE);
+      if (e.code === 'Digit2') setStance(STANCE.SOLITUDE);
+      if (e.code === 'Digit3') setStance(STANCE.GRACE);
+      if (e.code === 'KeyQ') cycleStance(-1);
+      if (e.code === 'KeyE') cycleStance(1);
+
+      if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
+        if (Game.entities.player) Game.entities.player.jump();
+      }
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyK') {
+        if (Game.entities.player) Game.entities.player.dash();
+      }
+      if (e.code === 'KeyR') {
+        tryTriggerEX();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      Game.keys[e.code] = false;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      Game.mouse.x = e.clientX;
+      Game.mouse.y = e.clientY;
+    });
+
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        Game.mouse.down = true;
+        audio.init();
+      }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 0) {
+        Game.mouse.down = false;
+      }
+    });
+
+    function cycleStance(dir) {
+      if (!Game.entities.player) return;
+      const next = (Game.entities.player.currentStance + dir + 3) % 3;
+      setStance(next);
+    }
+
+    function tryTriggerEX() {
+      if (Game.entities.player) Game.entities.player.triggerEX();
+    }
+
+    // Touch Virtual Controls Handlers
+    function setupTouchControls() {
+      const btnL = document.getElementById('btnLeft');
+      const btnR = document.getElementById('btnRight');
+      const btnJ = document.getElementById('btnJump');
+      const btnD = document.getElementById('btnDash');
+      const btnS = document.getElementById('btnShoot');
+
+      const addTouch = (elem, onStart, onEnd) => {
+        elem.addEventListener('touchstart', (e) => { e.preventDefault(); onStart(); });
+        elem.addEventListener('touchend', (e) => { e.preventDefault(); onEnd(); });
+      };
+
+      addTouch(btnL, () => { Game.touchDir = -1; }, () => { Game.touchDir = 0; });
+      addTouch(btnR, () => { Game.touchDir = 1; }, () => { Game.touchDir = 0; });
+      addTouch(btnJ, () => { if (Game.entities.player) Game.entities.player.jump(); }, () => {});
+      addTouch(btnD, () => { if (Game.entities.player) Game.entities.player.dash(); }, () => {});
+      addTouch(btnS, () => { Game.touchShoot = true; audio.init(); }, () => { Game.touchShoot = false; });
+    }
+    setupTouchControls();
+
+    /* ==========================================================================
+       MODAL & FLOW CONTROLLERS
+       ========================================================================== */
+    function startOrResumeGame() {
+      audio.init();
+      const modal = document.getElementById('modalOverlay');
+
+      if (Game.state === 'START' || Game.state === 'GAMEOVER') {
+        // Reset full state
+        initWorld();
+        Game.entities.player = new Player(400, 780);
+        Game.entities.enemies = [];
+        Game.entities.arrows = [];
+        Game.entities.particles = [];
+        Game.entities.decoys = [];
+        Game.entities.shockwaves = [];
+        Game.entities.damageTexts = [];
+        Game.score = 0;
+        Game.combo = 0;
+        Game.dawnGauge = 0;
+        setStance(STANCE.RADIANCE);
+        spawnWave(1);
+      }
+
+      Game.state = 'PLAYING';
+      modal.style.opacity = '0';
+      modal.style.pointerEvents = 'none';
+    }
+
+    function togglePause() {
+      if (Game.state === 'PLAYING') {
+        Game.state = 'PAUSED';
+        showModal('SANCTUM PAUSED', 'Rest your wings upon the celestial terrace.', 'RESUME FLIGHT');
+      } else if (Game.state === 'PAUSED') {
+        startOrResumeGame();
+      }
+    }
+
+    function triggerGameOver() {
+      Game.state = 'GAMEOVER';
+      showModal(
+        'THE FEATHER SCATTERS',
+        `The shadows overtake the ruins. Purified Waves: ${Game.wave} | Final Score: ${Game.score} PTS. Renew the vow?`,
+        'REKINDLE THE DAWN'
+      );
+    }
+
+    function showModal(title, subtitle, btnText) {
+      const modal = document.getElementById('modalOverlay');
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalSubtitle').textContent = subtitle;
+      document.getElementById('modalActionBtn').textContent = btnText;
+      modal.style.opacity = '1';
+      modal.style.pointerEvents = 'auto';
+    }
+
+    // Start Animation Loop on Window Load
+    window.onload = function () {
+      initWorld();
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>

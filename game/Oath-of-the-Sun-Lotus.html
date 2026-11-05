@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Oath of the Sun Lotus - Sanctum Defense</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Cinzel & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow: hidden;
+      background-color: #0b0716;
+    }
+    .cinzel {
+      font-family: 'Cinzel', serif;
+    }
+    /* Gold & Lotus gradients */
+    .gold-gradient-text {
+      background: linear-gradient(135deg, #fff7d6 0%, #ffd768 45%, #e6a827 80%, #aa6d00 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .lotus-gradient-text {
+      background: linear-gradient(135deg, #ffe4f0 0%, #ff8ab6 50%, #e0457b 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .gold-border {
+      border: 1px solid rgba(245, 197, 66, 0.4);
+      box-shadow: 0 0 15px rgba(230, 168, 39, 0.15), inset 0 0 10px rgba(255, 223, 114, 0.1);
+    }
+    .glass-panel {
+      background: rgba(18, 12, 33, 0.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(245, 215, 130, 0.22);
+    }
+    /* Pulsing weak-point reticle */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.9); opacity: 0.9; }
+      50% { transform: scale(1.15); opacity: 0.5; }
+      100% { transform: scale(0.9); opacity: 0.9; }
+    }
+    .pulse-glow {
+      animation: pulse-ring 2s infinite ease-in-out;
+    }
+    /* Custom button styling */
+    .sacred-btn {
+      transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .sacred-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 18px rgba(245, 197, 66, 0.4);
+    }
+    .sacred-btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+    /* Hide scrollbars */
+    ::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden bg-slate-950 text-amber-50">
+
+  <!-- Main Game Canvas -->
+  <canvas id="gameCanvas" class="absolute inset-0 w-full h-full block z-0"></canvas>
+
+  <!-- Top HUD Bar -->
+  <header class="absolute top-0 left-0 right-0 p-3 sm:p-4 pointer-events-none z-10 flex items-start justify-between">
+    <!-- Left: Sanctum Altar HP & Oathkeeper Status -->
+    <div class="pointer-events-auto flex flex-col gap-1.5 glass-panel px-3.5 py-2.5 rounded-2xl max-w-[240px] sm:max-w-xs shadow-lg">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_#ffd768]"></span>
+          <span class="cinzel text-xs sm:text-sm font-bold tracking-wider gold-gradient-text uppercase">Sanctum Altar</span>
+        </div>
+        <span id="hpText" class="text-xs font-semibold text-amber-200">1000 / 1000</span>
+      </div>
+      <!-- Health Bar -->
+      <div class="w-full h-2.5 sm:h-3 bg-black/60 rounded-full overflow-hidden p-0.5 border border-amber-500/30">
+        <div id="hpFill" class="h-full bg-gradient-to-r from-amber-400 via-rose-400 to-amber-200 rounded-full transition-all duration-300 w-full shadow-[0_0_10px_#e0457b]"></div>
+      </div>
+      <!-- Wave & Score row -->
+      <div class="flex justify-between items-center text-[11px] sm:text-xs text-amber-100/80 pt-0.5">
+        <span id="waveLabel" class="font-medium text-amber-300">Wave 1 / 5</span>
+        <span id="scoreLabel" class="font-bold tracking-wide text-amber-100">Score: 0</span>
+      </div>
+    </div>
+
+    <!-- Center: Wind Gauge & Combo Counter -->
+    <div class="flex flex-col items-center gap-1">
+      <!-- Wind Indicator -->
+      <div id="windIndicator" class="glass-panel px-3.5 py-1.5 rounded-full pointer-events-auto flex items-center gap-2 border border-amber-400/30 shadow-md">
+        <svg class="w-3.5 h-3.5 text-amber-300 animate-spin" style="animation-duration: 8s;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+        </svg>
+        <span class="text-[11px] sm:text-xs font-semibold tracking-wide text-amber-100 uppercase" id="windText">Wind: Calm</span>
+      </div>
+      <!-- Combo Meter (Hidden until combo > 1) -->
+      <div id="comboBanner" class="opacity-0 transition-opacity duration-300 glass-panel px-3 py-1 rounded-full border border-pink-400/40 shadow-[0_0_12px_rgba(255,105,180,0.3)]">
+        <span id="comboText" class="cinzel text-xs sm:text-sm font-extrabold text-pink-300 tracking-wider">3x COMBO</span>
+      </div>
+    </div>
+
+    <!-- Right: Audio & Controls / Pause -->
+    <div class="pointer-events-auto flex items-center gap-2">
+      <!-- Sound Toggle -->
+      <button id="soundBtn" class="w-9 h-9 sm:w-10 sm:h-10 rounded-full glass-panel flex items-center justify-center hover:bg-amber-500/20 active:scale-95 transition-all text-amber-300 border border-amber-400/30" title="Toggle Audio">
+        <svg id="soundIconOn" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+        </svg>
+        <svg id="soundIconOff" class="w-5 h-5 hidden text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+        </svg>
+      </button>
+
+      <!-- Info / Help Toggle -->
+      <button id="helpBtn" class="w-9 h-9 sm:w-10 sm:h-10 rounded-full glass-panel flex items-center justify-center hover:bg-amber-500/20 active:scale-95 transition-all text-amber-300 border border-amber-400/30" title="Help & Lore">
+        <span class="cinzel font-bold text-sm">?</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Bottom Sacred Quiver Selector HUD -->
+  <nav class="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 z-10 pointer-events-auto flex items-center gap-2 sm:gap-4 p-1.5 sm:p-2 rounded-3xl glass-panel shadow-2xl border border-amber-400/30" aria-label="Sacred Quiver Selection">
+    
+    <!-- Arrow 1: Solar Pierce -->
+    <button id="arrowBtn-0" onclick="selectArrowType(0)" class="sacred-btn relative flex flex-col items-center justify-center w-16 sm:w-20 h-16 sm:h-20 rounded-2xl p-1 bg-amber-950/40 border-2 border-amber-400/90 shadow-[0_0_15px_rgba(255,215,0,0.35)] transition-all">
+      <span class="absolute top-1 left-2 text-[9px] font-bold text-amber-300">1</span>
+      <!-- Arrow Icon -->
+      <svg class="w-7 h-7 sm:w-8 sm:h-8 text-amber-300 drop-shadow-[0_0_8px_rgba(255,215,0,0.8)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 19L19 5M19 5H10M19 5V14" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="12" r="3" fill="#ffd768" stroke="none"/>
+      </svg>
+      <span class="text-[9px] sm:text-[10px] font-bold uppercase tracking-tight text-amber-100 mt-0.5">Solar Pierce</span>
+      <div id="cooldown-0" class="absolute inset-0 bg-black/75 rounded-2xl hidden items-center justify-center font-bold text-xs text-amber-300"></div>
+    </button>
+
+    <!-- Arrow 2: Lotus Bloom -->
+    <button id="arrowBtn-1" onclick="selectArrowType(1)" class="sacred-btn relative flex flex-col items-center justify-center w-16 sm:w-20 h-16 sm:h-20 rounded-2xl p-1 bg-rose-950/30 border border-pink-400/40 hover:border-pink-300 transition-all opacity-85">
+      <span class="absolute top-1 left-2 text-[9px] font-bold text-pink-300">2</span>
+      <!-- Lotus Icon -->
+      <svg class="w-7 h-7 sm:w-8 sm:h-8 text-pink-300 drop-shadow-[0_0_8px_rgba(244,114,182,0.8)]" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C12 2 8 7 8 12C8 17 12 22 12 22C12 22 16 17 16 12C16 7 12 2 12 2Z" opacity="0.9"/>
+        <path d="M12 22C12 22 5 19 3 14C1 9 6 6 6 6C6 6 8 12 12 22Z" opacity="0.6"/>
+        <path d="M12 22C12 22 19 19 21 14C23 9 18 6 18 6C18 6 16 12 12 22Z" opacity="0.6"/>
+      </svg>
+      <span class="text-[9px] sm:text-[10px] font-bold uppercase tracking-tight text-pink-200 mt-0.5">Lotus Bloom</span>
+      <div id="cooldown-1" class="absolute inset-0 bg-black/75 rounded-2xl hidden items-center justify-center font-bold text-xs text-pink-300"></div>
+    </button>
+
+    <!-- Arrow 3: Heavenly Volley -->
+    <button id="arrowBtn-2" onclick="selectArrowType(2)" class="sacred-btn relative flex flex-col items-center justify-center w-16 sm:w-20 h-16 sm:h-20 rounded-2xl p-1 bg-sky-950/30 border border-sky-400/40 hover:border-sky-300 transition-all opacity-85">
+      <span class="absolute top-1 left-2 text-[9px] font-bold text-sky-300">3</span>
+      <!-- Multi-Arrow Feather Icon -->
+      <svg class="w-7 h-7 sm:w-8 sm:h-8 text-sky-200 drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 3v14M8 7l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 9l3-3M19 9l-3-3" stroke-linecap="round"/>
+        <path d="M7 19l5-2 5 2" stroke-linecap="round"/>
+      </svg>
+      <span class="text-[9px] sm:text-[10px] font-bold uppercase tracking-tight text-sky-100 mt-0.5">Sky Volley</span>
+      <div id="cooldown-2" class="absolute inset-0 bg-black/75 rounded-2xl hidden items-center justify-center font-bold text-xs text-sky-300"></div>
+    </button>
+  </nav>
+
+  <!-- Drag / Aim Prompt Hint for Mobile / Desktop -->
+  <div id="aimHint" class="absolute top-1/2 left-6 sm:left-14 -translate-y-1/2 pointer-events-none z-10 transition-opacity duration-700 opacity-90">
+    <div class="flex items-center gap-2 glass-panel px-3.5 py-2 rounded-2xl border border-amber-300/40 shadow-lg animate-pulse">
+      <svg class="w-5 h-5 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+      <div class="text-xs font-semibold text-amber-100">
+        <span class="block text-amber-300 font-bold">DRAG &amp; PULL BACK</span>
+        Aim trajectory &amp; release
+      </div>
+    </div>
+  </div>
+
+  <!-- Big Announcement Banner (Wave start, Boss, Perfect hits) -->
+  <div id="bannerOverlay" class="absolute inset-0 pointer-events-none z-20 flex flex-col items-center justify-center opacity-0 transition-opacity duration-500">
+    <div class="transform -translate-y-6 text-center">
+      <h2 id="bannerTitle" class="cinzel text-3xl sm:text-5xl md:text-6xl font-black tracking-widest gold-gradient-text drop-shadow-[0_4px_25px_rgba(255,215,0,0.6)] uppercase">WAVE 1</h2>
+      <p id="bannerSubtitle" class="text-sm sm:text-lg text-pink-200/90 font-medium tracking-wide mt-2">Purge the Void Outrunners</p>
+    </div>
+  </div>
+
+  <!-- Help & Lore Modal -->
+  <div id="helpModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-40 hidden flex items-center justify-center p-4">
+    <div class="glass-panel max-w-lg w-full p-6 sm:p-8 rounded-3xl border border-amber-400/40 shadow-2xl relative text-amber-100">
+      <button id="closeHelpBtn" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-amber-500/10 hover:bg-amber-500/30 flex items-center justify-center text-amber-300 transition-colors">?</button>
+      
+      <div class="text-center mb-5">
+        <h3 class="cinzel text-2xl sm:text-3xl font-extrabold gold-gradient-text">Oath of the Sun Lotus</h3>
+        <p class="text-xs text-amber-300/80 tracking-widest uppercase mt-1">Sacred Sanctum Defense Manual</p>
+      </div>
+
+      <div class="space-y-4 text-xs sm:text-sm text-slate-200 max-h-[60vh] overflow-y-auto pr-1">
+        <div class="p-3 rounded-xl bg-amber-950/30 border border-amber-500/20">
+          <h4 class="font-bold text-amber-300 flex items-center gap-1.5 mb-1">
+            <span>??</span> Drag-to-Draw Ballistics
+          </h4>
+          <p>Touch or click on the screen and pull backwards to draw the Oathkeeper's winged bow. The dynamic dotted arc predicts trajectory, taking gravity and wind drift into account. Release to fire!</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-rose-950/30 border border-rose-500/20">
+          <h4 class="font-bold text-pink-300 flex items-center gap-1.5 mb-1">
+            <span>??</span> Weak-Point Sniping
+          </h4>
+          <p>Enemies have vulnerable golden cores! Strike heads or glowing airborne corruption cores for <strong class="text-amber-300">3× Critical Damage</strong>, instantaneous golden particle shatters, and combo boosts!</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-900/60 border border-amber-400/20 space-y-2">
+          <h4 class="font-bold text-amber-200">Sacred Quiver (Keys 1, 2, 3):</h4>
+          <ul class="space-y-1.5 text-xs">
+            <li><strong class="text-amber-400">1. Solar Pierce:</strong> High-velocity heavy light shaft. Penetrates through entire rows of enemies with heavy knockback.</li>
+            <li><strong class="text-pink-400">2. Lotus Bloom:</strong> Crystalline arrow. Detonates into an expanding vortex of radiant pink petals that slows and burns enemies over time.</li>
+            <li><strong class="text-sky-300">3. Sky Volley:</strong> Fire into the skies; at apex height it splits into 3 seeking celestial arrows that hunt active foes.</li>
+          </ul>
+        </div>
+      </div>
+
+      <button id="startPlayBtn" class="mt-6 w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-rose-400 text-slate-950 font-extrabold tracking-wider cinzel uppercase shadow-lg shadow-amber-500/30 hover:brightness-110 active:scale-95 transition-all">
+        Defend The Sanctum
+      </button>
+    </div>
+  </div>
+
+  <!-- Game Over / Victory Modal -->
+  <div id="endModal" class="fixed inset-0 bg-black/85 backdrop-blur-lg z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel max-w-md w-full p-6 sm:p-8 rounded-3xl border border-amber-400/50 shadow-2xl text-center relative">
+      <div id="endIcon" class="text-5xl sm:text-6xl mb-2">??</div>
+      <h3 id="endTitle" class="cinzel text-3xl sm:text-4xl font-extrabold gold-gradient-text tracking-wider uppercase mb-1">Sanctum Preserved</h3>
+      <p id="endSubtitle" class="text-xs sm:text-sm text-amber-200/80 mb-6 font-medium">The twilight corruption has been purified.</p>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 gap-2.5 mb-6 text-left">
+        <div class="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30">
+          <div class="text-[10px] text-amber-300 uppercase tracking-wider font-semibold">Total Score</div>
+          <div id="statScore" class="cinzel text-xl sm:text-2xl font-bold text-white">0</div>
+        </div>
+        <div class="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30">
+          <div class="text-[10px] text-amber-300 uppercase tracking-wider font-semibold">Weak Points Hit</div>
+          <div id="statWeakPoints" class="cinzel text-xl sm:text-2xl font-bold text-amber-300">0</div>
+        </div>
+        <div class="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30">
+          <div class="text-[10px] text-amber-300 uppercase tracking-wider font-semibold">Accuracy</div>
+          <div id="statAccuracy" class="cinzel text-xl sm:text-2xl font-bold text-pink-300">0%</div>
+        </div>
+        <div class="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30">
+          <div class="text-[10px] text-amber-300 uppercase tracking-wider font-semibold">Waves Cleared</div>
+          <div id="statWaves" class="cinzel text-xl sm:text-2xl font-bold text-sky-300">0</div>
+        </div>
+      </div>
+
+      <button id="restartBtn" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-rose-400 text-slate-950 font-extrabold cinzel uppercase tracking-widest shadow-xl shadow-amber-500/30 hover:brightness-110 active:scale-95 transition-all">
+        Rise Again
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Game Script -->
+  <script>
+    /* ==========================================================================
+       OATH OF THE SUN LOTUS - JAVASCRIPT GAME ENGINE
+       ========================================================================== */
+
+    // Web Audio Synthesizer (Zero External Assets)
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+        this.droneOsc = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+            this.startDrone();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      startDrone() {
+        if (!this.ctx || !this.enabled) return;
+        try {
+          // Celestial harmonic drone (F# minor sacred pentatonic)
+          const baseFreq = 92.5; // F#2
+          const freqs = [baseFreq, baseFreq * 1.5, baseFreq * 2];
+          freqs.forEach((f, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = idx === 0 ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(f, this.ctx.currentTime);
+
+            // Very low ethereal background level
+            gain.gain.setValueAtTime(0.012 / (idx + 1), this.ctx.currentTime);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+          });
+        } catch (e) {
+          console.warn("Drone audio error", e);
+        }
+      }
+
+      playBowDraw(powerRatio) {
+        if (!this.ctx || !this.enabled) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(180 + powerRatio * 160, now + 0.1);
+        gain.gain.setValueAtTime(0.03, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(now + 0.12);
+      }
+
+      playRelease(type) {
+        if (!this.ctx || !this.enabled) return;
+        const now = this.ctx.currentTime;
+        
+        // Crisp string twang
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(480, now);
+        osc.frequency.exponentialRampToValueAtTime(120, now + 0.18);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(now + 0.18);
+
+        // Sub-chime depending on arrow type
+        if (type === 0) { // Solar Pierce laser-twang
+          const laser = this.ctx.createOscillator();
+          const laserGain = this.ctx.createGain();
+          laser.type = 'sawtooth';
+          laser.frequency.setValueAtTime(800, now);
+          laser.frequency.exponentialRampToValueAtTime(220, now + 0.25);
+          laserGain.gain.setValueAtTime(0.08, now);
+          laserGain.gain.linearRampToValueAtTime(0.001, now + 0.25);
+          laser.connect(laserGain);
+          laserGain.connect(this.ctx.destination);
+          laser.start();
+          laser.stop(now + 0.25);
+        } else if (type === 1) { // Lotus Bloom bell
+          this.playChime(660, 0.35);
+        } else if (type === 2) { // Heavenly Volley
+          this.playChime(880, 0.4);
+        }
+      }
+
+      playChime(freq = 740, duration = 0.5) {
+        if (!this.ctx || !this.enabled) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(now + duration);
+      }
+
+      playCriticalHit() {
+        if (!this.ctx || !this.enabled) return;
+        const now = this.ctx.currentTime;
+        // High crystal glass shatter chord
+        [1100, 1480, 2200].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.02);
+          gain.gain.setValueAtTime(0.2 / (idx + 1), now + idx * 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.02);
+          osc.stop(now + 0.45);
+        });
+      }
+
+      playEnemyHit() {
+        if (!this.ctx || !this.enabled) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.12);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(now + 0.12);
+      }
+
+      playBloomDetonation() {
+        if (!this.ctx || !this.enabled) return;
+        const now = this.ctx.currentTime;
+        // Warm mystical resonance
+        [440, 554, 659, 880].forEach((f, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, now + i * 0.04);
+          gain.gain.setValueAtTime(0.12, now + i * 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.04);
+          osc.stop(now + 0.6);
+        });
+      }
+
+      playAltarDamage() {
+        if (!this.ctx || !this.enabled) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(110, now);
+        osc.frequency.linearRampToValueAtTime(45, now + 0.3);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(now + 0.35);
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // Game Configuration & State
+    const CONFIG = {
+      gravity: 0.38,
+      groundHeightOffset: 120, // Ground level from bottom
+      maxDrawDist: 180,
+      minDrawDist: 25,
+      powerMultiplier: 0.22,
+      sanctumMaxHp: 1000,
+    };
+
+    const ARROW_SPECS = [
+      {
+        id: 0,
+        name: "Solar Pierce",
+        cooldown: 0, // Main attack
+        currentCd: 0,
+        damage: 160,
+        pierceCount: 4,
+        color: "#ffd768",
+        glow: "rgba(255, 215, 0, 0.8)",
+        knockback: 6,
+      },
+      {
+        id: 1,
+        name: "Lotus Bloom",
+        cooldown: 4.5,
+        currentCd: 0,
+        damage: 90,
+        bloomRadius: 130,
+        bloomDuration: 3.5, // Seconds of ticking lotus field
+        bloomTickDamage: 22,
+        color: "#ff8ab6",
+        glow: "rgba(255, 105, 180, 0.85)",
+      },
+      {
+        id: 2,
+        name: "Heavenly Volley",
+        cooldown: 6.0,
+        currentCd: 0,
+        damage: 130,
+        subArrows: 3,
+        color: "#7dd3fc",
+        glow: "rgba(125, 211, 252, 0.85)",
+      }
+    ];
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let W = window.innerWidth;
+    let H = window.innerHeight;
+    let dpr = window.devicePixelRatio || 1;
+
+    function resizeCanvas() {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // State
+    const state = {
+      score: 0,
+      sanctumHp: CONFIG.sanctumMaxHp,
+      wave: 1,
+      maxWaves: 5,
+      waveInProgress: false,
+      waveTimer: 0,
+      enemiesToSpawn: [],
+      selectedArrow: 0,
+      wind: 0, // Pixels per frame drift
+      windLabel: "Calm",
+      combo: 0,
+      comboTimer: 0,
+      stats: {
+        shotsFired: 0,
+        shotsHit: 0,
+        weakPointsHit: 0,
+        enemiesPurged: 0
+      },
+      isGameOver: false,
+      isVictory: false,
+      screenShake: 0,
+    };
+
+    // Pedestal and Archer position
+    function getArcherPos() {
+      const px = Math.max(90, W * 0.16);
+      const groundY = H - CONFIG.groundHeightOffset;
+      const py = groundY - 140; // Standing on top of high pedestal
+      return { x: px, y: py, groundY: groundY };
+    }
+
+    // Aiming interaction state
+    const aim = {
+      isDragging: false,
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0,
+      power: 0,
+      angle: 0,
+      drawRatio: 0,
+      hasInteracted: false
+    };
+
+    // Entities Arrays
+    let arrows = [];
+    let enemies = [];
+    let particles = [];
+    let bloomZones = [];
+    let damageNumbers = [];
+    let ambientPetals = [];
+
+    // Initialize ambient celestial floating petals
+    for (let i = 0; i < 40; i++) {
+      ambientPetals.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        size: 3 + Math.random() * 5,
+        speedX: 0.4 + Math.random() * 0.8,
+        speedY: 0.3 + Math.random() * 0.6,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.04,
+        alpha: 0.2 + Math.random() * 0.45,
+        color: Math.random() > 0.4 ? '#ffb3d9' : '#ffe680'
+      });
+    }
+
+    // Dynamic Wind updates
+    function randomizeWind() {
+      const winds = [
+        { val: 0, text: "Calm" },
+        { val: -0.06, text: "? 1.8 m/s" },
+        { val: -0.12, text: "? 3.5 m/s" },
+        { val: 0.07, text: "? 2.1 m/s" },
+        { val: 0.14, text: "? 4.2 m/s" },
+      ];
+      const pick = winds[Math.floor(Math.random() * winds.length)];
+      state.wind = pick.val;
+      state.windLabel = pick.text;
+      document.getElementById('windText').innerText = `Wind: ${pick.text}`;
+    }
+    setInterval(randomizeWind, 9000);
+    randomizeWind();
+
+    /* ==========================================================================
+       PARTICLE & COMBAT TEXT ENGINE
+       ========================================================================== */
+    class Particle {
+      constructor(x, y, color, vx, vy, size = 3, life = 1, shape = 'circle') {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.vx = vx;
+        this.vy = vy;
+        this.size = size;
+        this.initialLife = life;
+        this.life = life;
+        this.shape = shape; // 'circle', 'feather', 'petal', 'spark'
+        this.rot = Math.random() * Math.PI * 2;
+        this.rotSpeed = (Math.random() - 0.5) * 0.1;
+      }
+
+      update(dt) {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += 0.05; // gentle gravity
+        this.rot += this.rotSpeed;
+        this.life -= dt;
+      }
+
+      draw(c) {
+        const progress = Math.max(0, this.life / this.initialLife);
+        c.save();
+        c.globalAlpha = progress;
+        c.translate(this.x, this.y);
+        c.rotate(this.rot);
+        c.fillStyle = this.color;
+        c.shadowColor = this.color;
+        c.shadowBlur = 6;
+
+        if (this.shape === 'petal') {
+          c.beginPath();
+          c.ellipse(0, 0, this.size * 1.5, this.size * 0.7, 0, 0, Math.PI * 2);
+          c.fill();
+        } else if (this.shape === 'spark') {
+          c.beginPath();
+          c.rect(-this.size, -this.size / 3, this.size * 2, this.size / 1.5);
+          c.fill();
+        } else {
+          c.beginPath();
+          c.arc(0, 0, this.size, 0, Math.PI * 2);
+          c.fill();
+        }
+        c.restore();
+      }
+    }
+
+    function spawnBurst(x, y, color, count = 20, isCritical = false) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = (isCritical ? 3.5 : 2.0) + Math.random() * (isCritical ? 7 : 4);
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        const shape = Math.random() > 0.4 ? 'spark' : 'petal';
+        particles.push(new Particle(x, y, color, vx, vy, isCritical ? 4.5 : 2.8, 0.6 + Math.random() * 0.6, shape));
+      }
+    }
+
+    class FloatingText {
+      constructor(text, x, y, color = '#ffd768', isCritical = false) {
+        this.text = text;
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.isCritical = isCritical;
+        this.life = 1.0;
+        this.vy = -1.4;
+      }
+
+      update(dt) {
+        this.y += this.vy;
+        this.life -= dt;
+      }
+
+      draw(c) {
+        c.save();
+        c.globalAlpha = Math.max(0, this.life);
+        c.font = this.isCritical ? '900 20px "Cinzel", serif' : '700 14px "Plus Jakarta Sans", sans-serif';
+        c.fillStyle = this.color;
+        c.shadowColor = this.isCritical ? '#ffb300' : 'rgba(0,0,0,0.8)';
+        c.shadowBlur = this.isCritical ? 14 : 6;
+        c.textAlign = 'center';
+        c.fillText(this.text, this.x, this.y);
+        c.restore();
+      }
+    }
+
+    class LotusBloomZone {
+      constructor(x, y, radius, duration, tickDamage) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.duration = duration;
+        this.maxDuration = duration;
+        this.tickDamage = tickDamage;
+        this.tickTimer = 0;
+        this.rotation = 0;
+      }
+
+      update(dt) {
+        this.duration -= dt;
+        this.rotation += 0.02;
+        this.tickTimer += dt;
+
+        // Damage pulse every 0.4s
+        if (this.tickTimer >= 0.4) {
+          this.tickTimer = 0;
+          enemies.forEach(enemy => {
+            const dx = enemy.x - this.x;
+            const dy = enemy.y - this.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < this.radius) {
+              enemy.takeDamage(this.tickDamage, false, true); // slowed
+              damageNumbers.push(new FloatingText(`${this.tickDamage}`, enemy.x + (Math.random()-0.5)*20, enemy.y - 10, '#f472b6'));
+            }
+          });
+        }
+      }
+
+      draw(c) {
+        c.save();
+        const alpha = Math.min(1, this.duration / 0.8) * 0.75;
+        c.globalAlpha = alpha;
+
+        // Outer holy lotus ring
+        c.translate(this.x, this.y);
+        c.rotate(this.rotation);
+
+        const grad = c.createRadialGradient(0, 0, 10, 0, 0, this.radius);
+        grad.addColorStop(0, 'rgba(255, 182, 193, 0.45)');
+        grad.addColorStop(0.7, 'rgba(244, 114, 182, 0.25)');
+        grad.addColorStop(1, 'rgba(244, 114, 182, 0)');
+        c.fillStyle = grad;
+        c.beginPath();
+        c.arc(0, 0, this.radius, 0, Math.PI * 2);
+        c.fill();
+
+        // Stylized 8-petal lotus mandala
+        c.strokeStyle = '#fbcfe8';
+        c.lineWidth = 2;
+        c.shadowColor = '#f472b6';
+        c.shadowBlur = 12;
+
+        const petals = 8;
+        for (let i = 0; i < petals; i++) {
+          const angle = (i * Math.PI * 2) / petals;
+          c.save();
+          c.rotate(angle);
+          c.beginPath();
+          c.moveTo(0, 0);
+          c.quadraticCurveTo(this.radius * 0.4, this.radius * 0.35, 0, this.radius * 0.85);
+          c.quadraticCurveTo(-this.radius * 0.4, this.radius * 0.35, 0, 0);
+          c.stroke();
+          c.restore();
+        }
+
+        c.restore();
+      }
+    }
+
+    /* ==========================================================================
+       ARROW ENGINE & BALLISTICS
+       ========================================================================== */
+    class Arrow {
+      constructor(x, y, vx, vy, typeSpec, isSubArrow = false) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.spec = typeSpec;
+        this.isSubArrow = isSubArrow;
+        this.piercedEnemies = new Set();
+        this.active = true;
+        this.trail = [];
+        this.trailMax = 12;
+        this.age = 0;
+        this.angle = Math.atan2(vy, vx);
+        this.hasSplit = false;
+        this.target = null; // For homing volley
+      }
+
+      update(dt) {
+        this.age += dt;
+
+        // Track trail
+        this.trail.unshift({ x: this.x, y: this.y });
+        if (this.trail.length > this.trailMax) this.trail.pop();
+
+        // Heavenly Volley Logic: Split at apex or descending
+        if (this.spec.id === 2 && !this.isSubArrow && !this.hasSplit) {
+          if (this.vy >= -1.0 || this.age > 0.9) {
+            this.splitIntoVolley();
+            this.active = false;
+            return;
+          }
+        }
+
+        // Homing behavior for Heavenly Volley sub-arrows
+        if (this.isSubArrow) {
+          if (!this.target || this.target.hp <= 0) {
+            // Find closest active enemy
+            let closest = null;
+            let minDist = Infinity;
+            enemies.forEach(e => {
+              if (e.hp > 0 && e.x > this.x - 50) {
+                const d = Math.hypot(e.x - this.x, e.y - this.y);
+                if (d < minDist) {
+                  minDist = d;
+                  closest = e;
+                }
+              }
+            });
+            this.target = closest;
+          }
+
+          if (this.target) {
+            const tx = this.target.x + (this.target.weakPoint ? this.target.weakPoint.offsetX : 0);
+            const ty = this.target.y + (this.target.weakPoint ? this.target.weakPoint.offsetY : 0);
+            const targetAngle = Math.atan2(ty - this.y, tx - this.x);
+            const currentAngle = Math.atan2(this.vy, this.vx);
+            let diff = targetAngle - currentAngle;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            
+            const turnRate = 0.12;
+            const newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), turnRate);
+            const currentSpeed = Math.hypot(this.vx, this.vy);
+            this.vx = Math.cos(newAngle) * currentSpeed;
+            this.vy = Math.sin(newAngle) * currentSpeed;
+          }
+        }
+
+        // Physics integration
+        this.vx += state.wind;
+        this.vy += CONFIG.gravity;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.angle = Math.atan2(this.vy, this.vx);
+
+        // Ground collision
+        const groundY = H - CONFIG.groundHeightOffset + 20;
+        if (this.y >= groundY) {
+          this.onGroundImpact();
+          this.active = false;
+        }
+
+        // Offscreen check
+        if (this.x > W + 200 || this.x < -100 || this.y > H + 100) {
+          this.active = false;
+        }
+      }
+
+      splitIntoVolley() {
+        this.hasSplit = true;
+        sound.playChime(950, 0.4);
+        spawnBurst(this.x, this.y, '#bae6fd', 16, true);
+
+        const angles = [-0.35, 0, 0.35];
+        angles.forEach(offsetAngle => {
+          const speed = 12;
+          const finalAngle = this.angle + offsetAngle;
+          const subVx = Math.cos(finalAngle) * speed;
+          const subVy = Math.sin(finalAngle) * speed;
+          arrows.push(new Arrow(this.x, this.y, subVx, subVy, this.spec, true));
+        });
+      }
+
+      onGroundImpact() {
+        if (this.spec.id === 1) { // Lotus Bloom explodes on impact
+          bloomZones.push(new LotusBloomZone(this.x, this.y - 15, this.spec.bloomRadius, this.spec.bloomDuration, this.spec.bloomTickDamage));
+          sound.playBloomDetonation();
+          spawnBurst(this.x, this.y - 10, '#f472b6', 28, true);
+        } else {
+          spawnBurst(this.x, this.y, this.spec.color, 8, false);
+        }
+      }
+
+      draw(c) {
+        c.save();
+
+        // Draw trail
+        if (this.trail.length > 1) {
+          c.beginPath();
+          c.moveTo(this.trail[0].x, this.trail[0].y);
+          for (let i = 1; i < this.trail.length; i++) {
+            c.lineTo(this.trail[i].x, this.trail[i].y);
+          }
+          c.strokeStyle = this.spec.color;
+          c.lineWidth = this.spec.id === 0 ? 4 : 2.5;
+          c.shadowColor = this.spec.glow;
+          c.shadowBlur = 12;
+          c.stroke();
+        }
+
+        // Draw Arrow Shaft & Sacred White-Gold Ornaments
+        c.translate(this.x, this.y);
+        c.rotate(this.angle);
+
+        c.shadowColor = this.spec.color;
+        c.shadowBlur = 10;
+
+        // Radiant Golden Arrow Shaft
+        c.strokeStyle = '#fff7d6';
+        c.lineWidth = this.spec.id === 0 ? 3.5 : 2.5;
+        c.beginPath();
+        c.moveTo(-28, 0);
+        c.lineTo(16, 0);
+        c.stroke();
+
+        // Arrow Head (Glowing Diamond / Sacred Lotus tip)
+        c.fillStyle = this.spec.color;
+        c.beginPath();
+        c.moveTo(22, 0);
+        c.lineTo(12, -5);
+        c.lineTo(15, 0);
+        c.lineTo(12, 5);
+        c.closePath();
+        c.fill();
+
+        // Sacred White Fletching / Wing Feathers
+        c.fillStyle = '#ffffff';
+        c.beginPath();
+        c.moveTo(-20, 0);
+        c.lineTo(-28, -7);
+        c.lineTo(-24, 0);
+        c.lineTo(-28, 7);
+        c.closePath();
+        c.fill();
+
+        // Lotus Bloom Blossom Tip
+        if (this.spec.id === 1) {
+          c.fillStyle = '#ff8ab6';
+          c.beginPath();
+          c.arc(16, 0, 5, 0, Math.PI * 2);
+          c.fill();
+        }
+
+        c.restore();
+      }
+    }
+
+    /* ==========================================================================
+       ENEMIES & CORRUPTION BEASTS
+       ========================================================================== */
+    class Enemy {
+      constructor(type, waveFactor = 1) {
+        this.type = type; // 'stalker', 'harpy', 'goliath'
+        this.groundY = H - CONFIG.groundHeightOffset;
+        this.x = W + 40 + Math.random() * 80;
+        this.active = true;
+        this.slowedTimer = 0;
+        this.hitFlashTimer = 0;
+
+        if (type === 'stalker') {
+          // Shadow Stalker: Fast ground hound
+          this.y = this.groundY - 30;
+          this.width = 54;
+          this.height = 36;
+          this.maxHp = Math.round(180 * waveFactor);
+          this.speed = 1.9 + Math.random() * 0.6;
+          this.damage = 95;
+          this.scoreValue = 120;
+          this.weakPoint = {
+            offsetX: -16,
+            offsetY: -12,
+            radius: 11,
+            label: "Head"
+          };
+        } else if (type === 'harpy') {
+          // Corrupted Void Harpy: Airborne swooping flyer
+          this.y = H * 0.2 + Math.random() * (H * 0.35);
+          this.baseY = this.y;
+          this.width = 58;
+          this.height = 42;
+          this.maxHp = Math.round(230 * waveFactor);
+          this.speed = 1.6 + Math.random() * 0.4;
+          this.damage = 110;
+          this.scoreValue = 190;
+          this.swoopPhase = Math.random() * Math.PI * 2;
+          this.weakPoint = {
+            offsetX: 0,
+            offsetY: -3,
+            radius: 12,
+            label: "Corruption Core"
+          };
+        } else if (type === 'goliath') {
+          // Abyssal Goliath: Heavy armored boss / brute
+          this.y = this.groundY - 58;
+          this.width = 86;
+          this.height = 80;
+          this.maxHp = Math.round(850 * waveFactor);
+          this.speed = 0.8;
+          this.damage = 260;
+          this.scoreValue = 600;
+          this.weakPoint = {
+            offsetX: -18,
+            offsetY: -22,
+            radius: 15,
+            label: "Chest Core"
+          };
+        }
+        this.hp = this.maxHp;
+        this.animTimer = Math.random() * 10;
+      }
+
+      takeDamage(amount, isWeakPoint = false, isSlow = false) {
+        this.hp -= amount;
+        this.hitFlashTimer = 0.15;
+        if (isSlow) {
+          this.slowedTimer = 2.0;
+        }
+
+        if (this.hp <= 0 && this.active) {
+          this.active = false;
+          this.die(isWeakPoint);
+        }
+      }
+
+      die(isWeakPoint) {
+        state.stats.enemiesPurged++;
+        state.score += this.scoreValue * (isWeakPoint ? 2 : 1);
+        updateScoreHUD();
+
+        // Golden dissolution burst
+        const burstColor = isWeakPoint ? '#ffd768' : '#e0457b';
+        spawnBurst(this.x, this.y, burstColor, isWeakPoint ? 35 : 18, isWeakPoint);
+
+        if (isWeakPoint) {
+          triggerScreenShake(8);
+          sound.playCriticalHit();
+        } else {
+          sound.playEnemyHit();
+        }
+      }
+
+      update(dt) {
+        this.animTimer += dt * 5;
+        if (this.hitFlashTimer > 0) this.hitFlashTimer -= dt;
+        if (this.slowedTimer > 0) this.slowedTimer -= dt;
+
+        const effectiveSpeed = this.slowedTimer > 0 ? this.speed * 0.45 : this.speed;
+
+        // Flying wavy swoop for harpies
+        if (this.type === 'harpy') {
+          this.swoopPhase += dt * 2.8;
+          this.y = this.baseY + Math.sin(this.swoopPhase) * 45;
+        }
+
+        this.x -= effectiveSpeed;
+
+        // Sanctum Pedestal collision
+        const archerPos = getArcherPos();
+        if (this.x <= archerPos.x + 40) {
+          // Damage sanctum
+          damageSanctum(this.damage);
+          this.active = false;
+          spawnBurst(this.x, this.y, '#ef4444', 20, false);
+          sound.playAltarDamage();
+        }
+      }
+
+      draw(c) {
+        c.save();
+        c.translate(this.x, this.y);
+
+        // Flash white on hit
+        if (this.hitFlashTimer > 0) {
+          c.filter = 'brightness(2.2)';
+        }
+
+        // Render Enemy Sprite Procedurally
+        if (this.type === 'stalker') {
+          this.drawStalker(c);
+        } else if (this.type === 'harpy') {
+          this.drawHarpy(c);
+        } else if (this.type === 'goliath') {
+          this.drawGoliath(c);
+        }
+
+        // Draw Health Bar
+        const barWidth = 46;
+        const barHeight = 4;
+        const hpPercent = Math.max(0, this.hp / this.maxHp);
+        c.fillStyle = 'rgba(0,0,0,0.7)';
+        c.fillRect(-barWidth / 2, -this.height / 2 - 16, barWidth, barHeight);
+        c.fillStyle = this.slowedTimer > 0 ? '#f472b6' : '#e11d48';
+        c.fillRect(-barWidth / 2, -this.height / 2 - 16, barWidth * hpPercent, barHeight);
+
+        // Draw Weak Point Targeting Reticle
+        if (this.weakPoint) {
+          const wx = this.weakPoint.offsetX;
+          const wy = this.weakPoint.offsetY;
+          const r = this.weakPoint.radius;
+          const pulse = Math.sin(this.animTimer * 1.5) * 2;
+
+          c.save();
+          c.translate(wx, wy);
+          c.strokeStyle = '#ffd768';
+          c.lineWidth = 1.8;
+          c.shadowColor = '#ffd768';
+          c.shadowBlur = 10;
+
+          // Reticle ring
+          c.beginPath();
+          c.arc(0, 0, r + pulse, 0, Math.PI * 2);
+          c.stroke();
+
+          // Inner glowing core
+          c.fillStyle = '#fffae0';
+          c.beginPath();
+          c.arc(0, 0, 3.5, 0, Math.PI * 2);
+          c.fill();
+
+          // Reticle tick crosshairs
+          c.beginPath();
+          c.moveTo(0, -r - 4); c.lineTo(0, -r + 2);
+          c.moveTo(0, r + 4); c.lineTo(0, r - 2);
+          c.moveTo(-r - 4, 0); c.lineTo(-r + 2, 0);
+          c.moveTo(r + 4, 0); c.lineTo(r - 2, 0);
+          c.stroke();
+
+          c.restore();
+        }
+
+        c.restore();
+      }
+
+      drawStalker(c) {
+        // Shadow Wolf / Hound of corruption
+        const legSwing = Math.sin(this.animTimer * 2) * 12;
+
+        c.fillStyle = '#1c1328';
+        c.strokeStyle = '#6d28d9';
+        c.lineWidth = 2;
+
+        // Shadow Body
+        c.beginPath();
+        c.ellipse(0, 0, 26, 14, 0, 0, Math.PI * 2);
+        c.fill();
+        c.stroke();
+
+        // Corrupted Mane Spine
+        c.fillStyle = '#9333ea';
+        for (let i = -15; i <= 15; i += 8) {
+          c.beginPath();
+          c.moveTo(i, -12);
+          c.lineTo(i + 4, -22);
+          c.lineTo(i + 8, -12);
+          c.fill();
+        }
+
+        // Snouted Head
+        c.fillStyle = '#1c1328';
+        c.beginPath();
+        c.moveTo(-12, -4);
+        c.lineTo(-28, -6);
+        c.lineTo(-20, -18);
+        c.closePath();
+        c.fill();
+
+        // Legs
+        c.strokeStyle = '#3b0764';
+        c.lineWidth = 3.5;
+        c.beginPath();
+        c.moveTo(-10, 8); c.lineTo(-14 + legSwing, 22);
+        c.moveTo(12, 8); c.lineTo(16 - legSwing, 22);
+        c.stroke();
+      }
+
+      drawHarpy(c) {
+        // Corrupted Wyrm / Feathered Void Harpy
+        const wingFlap = Math.sin(this.animTimer * 2.5) * 22;
+
+        // Wings
+        c.fillStyle = '#2e1065';
+        c.strokeStyle = '#c084fc';
+        c.lineWidth = 1.5;
+
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.quadraticCurveTo(15, -35 + wingFlap, 40, -15 + wingFlap);
+        c.quadraticCurveTo(10, 10, 0, 5);
+        c.fill();
+        c.stroke();
+
+        c.beginPath();
+        c.moveTo(-5, 0);
+        c.quadraticCurveTo(-25, -35 - wingFlap, -48, -15 - wingFlap);
+        c.quadraticCurveTo(-15, 10, -5, 5);
+        c.fill();
+        c.stroke();
+
+        // Sleek Serpent Body
+        c.fillStyle = '#1e1b4b';
+        c.beginPath();
+        c.ellipse(0, 0, 16, 10, 0.2, 0, Math.PI * 2);
+        c.fill();
+
+        // Glowing Void Eyes
+        c.fillStyle = '#f43f5e';
+        c.beginPath();
+        c.arc(-10, -4, 2.5, 0, Math.PI * 2);
+        c.fill();
+      }
+
+      drawGoliath(c) {
+        // Heavy Abyssal Stone Brute
+        const step = Math.sin(this.animTimer * 1.2) * 5;
+
+        c.fillStyle = '#1e152a';
+        c.strokeStyle = '#a855f7';
+        c.lineWidth = 3;
+
+        // Massive Torso
+        c.beginPath();
+        c.roundRect(-36, -34, 72, 60, 12);
+        c.fill();
+        c.stroke();
+
+        // Spiked Shoulder Pauldrons
+        c.fillStyle = '#4c1d95';
+        c.beginPath();
+        c.moveTo(-36, -25);
+        c.lineTo(-50, -45);
+        c.lineTo(-25, -35);
+        c.closePath();
+        c.fill();
+
+        c.beginPath();
+        c.moveTo(36, -25);
+        c.lineTo(50, -45);
+        c.lineTo(25, -35);
+        c.closePath();
+        c.fill();
+
+        // Stomping Pillar Legs
+        c.fillStyle = '#170f24';
+        c.fillRect(-28, 25, 20, 28 + step);
+        c.fillRect(10, 25, 20, 28 - step);
+      }
+    }
+
+    /* ==========================================================================
+       THE OATHKEEPER (ARCHER PRINCESS) & SACRED SUN PEDESTAL ART
+       ========================================================================== */
+    function renderArcherAndSanctum(c) {
+      const archer = getArcherPos();
+      const time = performance.now() * 0.002;
+      const breathe = Math.sin(time) * 1.5;
+
+      c.save();
+      c.translate(archer.x, archer.y);
+
+      /* -------------------------------------------------------------
+         1. CARVED STONE PEDESTAL WITH LOTUS ORNAMENTS & EMBLEM
+         ------------------------------------------------------------- */
+      c.save();
+      const pedTopY = 32;
+
+      // Base Pedestal Layers (Ancient carved layered stone)
+      const layers = [
+        { y: pedTopY + 75, w: 160, h: 42, color: '#3d2e24', stroke: '#5c4637' },
+        { y: pedTopY + 45, w: 140, h: 36, color: '#4d3b2e', stroke: '#705643' },
+        { y: pedTopY + 15, w: 120, h: 36, color: '#5e4838', stroke: '#8c6b54' },
+      ];
+
+      layers.forEach(l => {
+        c.fillStyle = l.color;
+        c.strokeStyle = l.stroke;
+        c.lineWidth = 2;
+        c.beginPath();
+        c.roundRect(-l.w / 2, l.y, l.w, l.h, 10);
+        c.fill();
+        c.stroke();
+
+        // Stone Cobble Texture flecks
+        c.fillStyle = 'rgba(0,0,0,0.2)';
+        for (let i = -l.w/2 + 10; i < l.w/2 - 10; i += 22) {
+          c.fillRect(i, l.y + 6, 12, 5);
+        }
+      });
+
+      // Front Circular Carved Lotus Medallion / Sun-Lotus Emblem
+      c.save();
+      c.translate(0, pedTopY + 52);
+      c.fillStyle = '#7d6148';
+      c.strokeStyle = '#d4af37';
+      c.lineWidth = 2.5;
+      c.shadowColor = '#ffd768';
+      c.shadowBlur = 8;
+      c.beginPath();
+      c.arc(0, 0, 22, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
+
+      // Inner 8-Petal Golden Lotus Relief
+      c.fillStyle = '#ffd768';
+      for (let i = 0; i < 8; i++) {
+        c.save();
+        c.rotate((i * Math.PI) / 4);
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.quadraticCurveTo(5, -10, 0, -18);
+        c.quadraticCurveTo(-5, -10, 0, 0);
+        c.fill();
+        c.restore();
+      }
+      c.restore();
+
+      // Blooming Pink Lotus Blossoms rimming the pedestal top
+      const lotusSpots = [-54, -30, 32, 56];
+      lotusSpots.forEach((lx, idx) => {
+        c.save();
+        c.translate(lx, pedTopY + 14);
+        c.scale(0.85, 0.85);
+
+        // Green Water-lily pad base
+        c.fillStyle = '#2d5a3c';
+        c.beginPath();
+        c.ellipse(0, 6, 12, 4, 0, 0, Math.PI * 2);
+        c.fill();
+
+        // Pink & Gold Lotus Petals
+        c.fillStyle = '#ff8ab6';
+        c.shadowColor = '#ff69b4';
+        c.shadowBlur = 6;
+        for (let p = -2; p <= 2; p++) {
+          c.beginPath();
+          c.ellipse(p * 3.5, -2, 4, 8, (p * Math.PI) / 12, 0, Math.PI * 2);
+          c.fill();
+        }
+        // Golden Center
+        c.fillStyle = '#fff08a';
+        c.beginPath();
+        c.arc(0, -2, 2.5, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      });
+
+      c.restore(); // End Pedestal
+
+      /* -------------------------------------------------------------
+         2. ETHEREAL WHITE-GOLD ARCHER PRINCESS
+         ------------------------------------------------------------- */
+      c.save();
+      c.translate(0, breathe); // subtle breathing bob
+
+      // Flowing Pristine White Layered Robes with Gold Filigree
+      const windSway = Math.sin(time * 1.5) * 5;
+
+      // Outer Layer Skirt (Full flowing gown)
+      c.fillStyle = '#ffffff';
+      c.strokeStyle = '#d4af37'; // Antique Gold
+      c.lineWidth = 1.5;
+      c.shadowColor = 'rgba(255, 215, 0, 0.3)';
+      c.shadowBlur = 10;
+
+      c.beginPath();
+      c.moveTo(-16, -15);
+      c.quadraticCurveTo(-35, 12, -42 + windSway, 32);
+      c.quadraticCurveTo(0, 36, 38 + windSway, 32);
+      c.quadraticCurveTo(24, 12, 14, -15);
+      c.closePath();
+      c.fill();
+      c.stroke();
+
+      // Gold Filigree Trim Patterns on Robe Hem
+      c.strokeStyle = '#d4af37';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(-38 + windSway, 28);
+      c.quadraticCurveTo(0, 32, 34 + windSway, 28);
+      c.stroke();
+
+      // Delicate Floral Embroidery on Skirt
+      c.fillStyle = '#ffd768';
+      for (let fx = -22; fx <= 22; fx += 14) {
+        c.beginPath();
+        c.arc(fx + windSway * 0.5, 20, 2.2, 0, Math.PI * 2);
+        c.fill();
+      }
+
+      // Fitted Bodice with Golden Floral Belt & Waist Brooch
+      c.fillStyle = '#fdfbf7';
+      c.beginPath();
+      c.moveTo(-12, -45);
+      c.lineTo(10, -45);
+      c.lineTo(12, -15);
+      c.lineTo(-14, -15);
+      c.closePath();
+      c.fill();
+
+      // Golden Sash & Lotus Brooch
+      c.fillStyle = '#e5a93b';
+      c.fillRect(-14, -18, 26, 4.5);
+      c.beginPath();
+      c.arc(-2, -16, 4, 0, Math.PI * 2);
+      c.fill();
+
+      // Quiver on Back with Golden Trim & White Arrows
+      c.save();
+      c.rotate(-0.25);
+      c.fillStyle = '#f8fafc';
+      c.strokeStyle = '#d4af37';
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.roundRect(-24, -65, 11, 40, 4);
+      c.fill();
+      c.stroke();
+      // White Feather Fletchings Peeking Out
+      c.fillStyle = '#ffffff';
+      c.beginPath();
+      c.moveTo(-22, -65); c.lineTo(-24, -76); c.lineTo(-20, -65);
+      c.moveTo(-18, -65); c.lineTo(-19, -78); c.lineTo(-16, -65);
+      c.moveTo(-14, -65); c.lineTo(-14, -75); c.lineTo(-12, -65);
+      c.fill();
+      c.restore();
+
+      // Head & Long Flowing Dark Hair with White-Gold Ornaments
+      // Hair Back
+      c.fillStyle = '#1c1521';
+      c.beginPath();
+      c.moveTo(-8, -50);
+      c.quadraticCurveTo(-26, -30, -28 + windSway, 10);
+      c.quadraticCurveTo(-14, -10, -5, -45);
+      c.fill();
+
+      // Face & Neck
+      c.fillStyle = '#ffe9d6';
+      c.beginPath();
+      c.arc(0, -52, 9, 0, Math.PI * 2);
+      c.fill();
+
+      // Hair Front & Hair Bun with Floral Hairpin
+      c.fillStyle = '#1c1521';
+      c.beginPath();
+      c.arc(-1, -55, 8.5, Math.PI * 0.9, Math.PI * 2.1);
+      c.fill();
+
+      // Golden Hairpin with Lotus Pearls
+      c.fillStyle = '#ffd768';
+      c.beginPath();
+      c.arc(-4, -60, 3.5, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#ffffff';
+      c.beginPath();
+      c.arc(-7, -61, 2, 0, Math.PI * 2);
+      c.arc(-1, -61, 2, 0, Math.PI * 2);
+      c.fill();
+
+      /* -------------------------------------------------------------
+         3. ORNATE WHITE-FEATHER WINGED GOLDEN BOW WITH SUN GEMS
+         ------------------------------------------------------------- */
+      c.save();
+      c.translate(8, -35); // Bow pivot at bow hand
+
+      // Dynamic aim rotation if aiming, else ready rest angle
+      let bowAngle = -0.2;
+      if (aim.isDragging) {
+        bowAngle = aim.angle;
+      }
+      c.rotate(bowAngle);
+
+      const drawPull = aim.isDragging ? aim.drawRatio * 20 : 0;
+
+      // Feathered Golden Bow Limbs (Wings of Light)
+      c.lineWidth = 3.5;
+      c.strokeStyle = '#e6af32';
+      c.shadowColor = '#ffd768';
+      c.shadowBlur = 12;
+
+      // Upper Wing Limb
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.bezierCurveTo(15, -25, 20, -55, 3, -75);
+      c.stroke();
+
+      // White Feather Wing Details on Upper Limb
+      c.fillStyle = '#ffffff';
+      c.beginPath();
+      c.moveTo(8, -40);
+      c.quadraticCurveTo(24, -58, 16, -78);
+      c.quadraticCurveTo(10, -60, 6, -42);
+      c.fill();
+
+      // Lower Wing Limb
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.bezierCurveTo(15, 25, 20, 55, 3, 75);
+      c.stroke();
+
+      // White Feather Wing Details on Lower Limb
+      c.fillStyle = '#ffffff';
+      c.beginPath();
+      c.moveTo(8, 40);
+      c.quadraticCurveTo(24, 58, 16, 78);
+      c.quadraticCurveTo(10, 60, 6, 42);
+      c.fill();
+
+      // Glowing Sun Gemstones mounted on Bow (3 gems matching reference image)
+      const gemColors = ['#ff4d4d', '#ff9900', '#ffd768'];
+      const gemSpots = [
+        { x: 10, y: -45, color: '#ff3366' },
+        { x: 12, y: 0,   color: '#ffaa00' },
+        { x: 10, y: 45,  color: '#ff3366' },
+      ];
+
+      gemSpots.forEach(g => {
+        // Gem Gold Socket
+        c.fillStyle = '#ffd768';
+        c.beginPath();
+        c.arc(g.x, g.y, 5, 0, Math.PI * 2);
+        c.fill();
+
+        // Radiant Sun Crystal
+        c.fillStyle = g.color;
+        c.shadowColor = g.color;
+        c.shadowBlur = 14;
+        c.beginPath();
+        c.arc(g.x, g.y, 3.2, 0, Math.PI * 2);
+        c.fill();
+      });
+
+      // Bowstring & Drawing Hand
+      c.lineWidth = 1.2;
+      c.strokeStyle = 'rgba(255, 245, 200, 0.9)';
+      c.shadowColor = '#fff';
+      c.shadowBlur = 6;
+      c.beginPath();
+      c.moveTo(3, -75);
+      c.lineTo(-drawPull, 0); // Pulled back notch
+      c.lineTo(3, 75);
+      c.stroke();
+
+      // Ready Nocked Arrow while drawing
+      if (aim.isDragging && aim.drawRatio > 0.05) {
+        const arrowType = ARROW_SPECS[state.selectedArrow];
+        c.strokeStyle = arrowType.color;
+        c.lineWidth = 2.5;
+        c.shadowColor = arrowType.glow;
+        c.shadowBlur = 10;
+        c.beginPath();
+        c.moveTo(-drawPull, 0);
+        c.lineTo(35 - drawPull, 0);
+        c.stroke();
+
+        // Glowing Arrowhead
+        c.fillStyle = '#ffffff';
+        c.beginPath();
+        c.arc(35 - drawPull, 0, 3.5, 0, Math.PI * 2);
+        c.fill();
+      }
+
+      c.restore(); // End Bow
+
+      c.restore(); // End Archer
+      c.restore(); // End All
+    }
+
+    /* ==========================================================================
+       BACKGROUND & CELESTIAL ATMOSPHERE RENDERING
+       ========================================================================== */
+    function renderBackground(c) {
+      // 1. Twilight Celestial Sky Gradient
+      const skyGrad = c.createLinearGradient(0, 0, 0, H);
+      skyGrad.addColorStop(0, '#0c071d'); // deep midnight violet
+      skyGrad.addColorStop(0.35, '#24103f'); // royal amethyst
+      skyGrad.addColorStop(0.65, '#561c47'); // twilight rose
+      skyGrad.addColorStop(0.88, '#a84e4f'); // warm sunset amber
+      skyGrad.addColorStop(1, '#ffab6b'); // glowing horizon gold
+      c.fillStyle = skyGrad;
+      c.fillRect(0, 0, W, H);
+
+      // 2. Giant Sacred Sun-Wheel Halo behind Oathkeeper
+      const archer = getArcherPos();
+      const haloX = archer.x - 30;
+      const haloY = archer.y - 40;
+      const time = performance.now() * 0.0008;
+
+      c.save();
+      c.translate(haloX, haloY);
+
+      // Ethereal Sun Glow
+      const sunGrad = c.createRadialGradient(0, 0, 10, 0, 0, 220);
+      sunGrad.addColorStop(0, 'rgba(255, 235, 160, 0.45)');
+      sunGrad.addColorStop(0.5, 'rgba(255, 180, 80, 0.18)');
+      sunGrad.addColorStop(1, 'rgba(255, 140, 140, 0)');
+      c.fillStyle = sunGrad;
+      c.beginPath();
+      c.arc(0, 0, 220, 0, Math.PI * 2);
+      c.fill();
+
+      // Rotating Ancient Sun-Wheel Filigree
+      c.rotate(time);
+      c.strokeStyle = 'rgba(255, 225, 140, 0.22)';
+      c.lineWidth = 1.8;
+      c.beginPath();
+      c.arc(0, 0, 140, 0, Math.PI * 2);
+      c.stroke();
+
+      // Sun wheel radial spokes
+      for (let s = 0; s < 12; s++) {
+        c.rotate(Math.PI / 6);
+        c.beginPath();
+        c.moveTo(110, 0);
+        c.lineTo(140, 0);
+        c.stroke();
+      }
+      c.restore();
+
+      // 3. Distant Layered Sacred Mountain Silhouettes
+      const groundY = H - CONFIG.groundHeightOffset;
+
+      // Far Mountains
+      c.fillStyle = '#2a1438';
+      c.beginPath();
+      c.moveTo(0, groundY);
+      c.lineTo(0, groundY - 140);
+      c.quadraticCurveTo(W * 0.25, groundY - 260, W * 0.45, groundY - 160);
+      c.quadraticCurveTo(W * 0.7, groundY - 290, W, groundY - 130);
+      c.lineTo(W, groundY);
+      c.closePath();
+      c.fill();
+
+      // Mid Mountains
+      c.fillStyle = '#1c0e27';
+      c.beginPath();
+      c.moveTo(0, groundY);
+      c.lineTo(0, groundY - 90);
+      c.quadraticCurveTo(W * 0.35, groundY - 170, W * 0.65, groundY - 80);
+      c.quadraticCurveTo(W * 0.85, groundY - 190, W, groundY - 70);
+      c.lineTo(W, groundY);
+      c.closePath();
+      c.fill();
+
+      // 4. Sacred Altar Plains & Ground Platform
+      const groundGrad = c.createLinearGradient(0, groundY, 0, H);
+      groundGrad.addColorStop(0, '#26152b');
+      groundGrad.addColorStop(0.3, '#1a0d20');
+      groundGrad.addColorStop(1, '#0c0510');
+      c.fillStyle = groundGrad;
+      c.fillRect(0, groundY, W, CONFIG.groundHeightOffset);
+
+      // Golden horizon trim line
+      c.strokeStyle = 'rgba(255, 215, 100, 0.4)';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(0, groundY);
+      c.lineTo(W, groundY);
+      c.stroke();
+
+      // 5. Ambient Floating Petals
+      ambientPetals.forEach(p => {
+        p.x += p.speedX + state.wind * 10;
+        p.y += p.speedY;
+        p.rotation += p.rotSpeed;
+
+        if (p.x > W + 20) p.x = -20;
+        if (p.x < -20) p.x = W + 20;
+        if (p.y > H + 20) p.y = -20;
+
+        c.save();
+        c.globalAlpha = p.alpha;
+        c.translate(p.x, p.y);
+        c.rotate(p.rotation);
+        c.fillStyle = p.color;
+        c.beginPath();
+        c.ellipse(0, 0, p.size, p.size * 0.5, 0, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      });
+    }
+
+    /* ==========================================================================
+       AIMING & PREDICTIVE TRAJECTORY ARC
+       ========================================================================== */
+    function renderTrajectoryPrediction(c) {
+      if (!aim.isDragging || aim.drawRatio <= 0.05) return;
+
+      const archer = getArcherPos();
+      const originX = archer.x + 12;
+      const originY = archer.y - 35;
+
+      const arrowSpeed = aim.power * CONFIG.powerMultiplier;
+      let simVx = Math.cos(aim.angle) * arrowSpeed;
+      let simVy = Math.sin(aim.angle) * arrowSpeed;
+      let simX = originX;
+      let simY = originY;
+
+      const arrowType = ARROW_SPECS[state.selectedArrow];
+
+      c.save();
+      const totalSteps = 45;
+      for (let i = 0; i < totalSteps; i++) {
+        // Integrate step
+        simVx += state.wind;
+        simVy += CONFIG.gravity;
+        simX += simVx;
+        simY += simVy;
+
+        // Fade out dots along the arc
+        const alpha = (1 - i / totalSteps) * 0.9;
+        const size = Math.max(1.5, 4.5 * (1 - i / totalSteps));
+
+        c.fillStyle = arrowType.color;
+        c.shadowColor = arrowType.glow;
+        c.shadowBlur = 8;
+        c.globalAlpha = alpha;
+
+        c.beginPath();
+        c.arc(simX, simY, size, 0, Math.PI * 2);
+        c.fill();
+
+        // Stop preview if hitting ground
+        if (simY >= H - CONFIG.groundHeightOffset + 20) break;
+      }
+
+      // Draw Power Indicator Ring around start pull
+      c.globalAlpha = 0.8;
+      c.strokeStyle = arrowType.color;
+      c.lineWidth = 2;
+      c.setLineDash([4, 4]);
+      c.beginPath();
+      c.arc(aim.startX, aim.startY, Math.min(CONFIG.maxDrawDist, aim.power), 0, Math.PI * 2);
+      c.stroke();
+      c.setLineDash([]);
+
+      // Draw Pull Line
+      c.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.moveTo(aim.startX, aim.startY);
+      c.lineTo(aim.currentX, aim.currentY);
+      c.stroke();
+
+      c.restore();
+    }
+
+    /* ==========================================================================
+       SCREEN SHAKE & GAME FEEL
+       ========================================================================== */
+    function triggerScreenShake(magnitude = 6) {
+      state.screenShake = Math.max(state.screenShake, magnitude);
+    }
+
+    function applyScreenShake(c) {
+      if (state.screenShake > 0) {
+        const shakeX = (Math.random() - 0.5) * state.screenShake;
+        const shakeY = (Math.random() - 0.5) * state.screenShake;
+        c.translate(shakeX, shakeY);
+        state.screenShake *= 0.88;
+        if (state.screenShake < 0.2) state.screenShake = 0;
+      }
+    }
+
+    /* ==========================================================================
+       COLLISION SYSTEM & WEAK POINT CHECKING
+       ========================================================================== */
+    function checkCollisions() {
+      arrows.forEach(arrow => {
+        if (!arrow.active) return;
+
+        enemies.forEach(enemy => {
+          if (!enemy.active || enemy.hp <= 0) return;
+          if (arrow.piercedEnemies.has(enemy)) return;
+
+          // 1. Weak Point Detection (Golden Reticle Hitbox)
+          let hitWeakPoint = false;
+          if (enemy.weakPoint) {
+            const wpx = enemy.x + enemy.weakPoint.offsetX;
+            const wpy = enemy.y + enemy.weakPoint.offsetY;
+            const distToCore = Math.hypot(arrow.x - wpx, arrow.y - wpy);
+
+            if (distToCore <= enemy.weakPoint.radius + 6) {
+              hitWeakPoint = true;
+            }
+          }
+
+          // 2. General Body Hitbox
+          const bodyDist = Math.hypot(arrow.x - enemy.x, arrow.y - enemy.y);
+          const hitBody = bodyDist <= Math.max(enemy.width, enemy.height) * 0.5;
+
+          if (hitWeakPoint || hitBody) {
+            state.stats.shotsHit++;
+            arrow.piercedEnemies.add(enemy);
+
+            let dmg = arrow.spec.damage;
+            if (hitWeakPoint) {
+              dmg = Math.round(dmg * 2.8); // 2.8x Critical damage
+              state.stats.weakPointsHit++;
+              registerCombo(true);
+              damageNumbers.push(new FloatingText(`? PERFECT CORE! -${dmg}`, enemy.x, enemy.y - 25, '#ffd768', true));
+            } else {
+              registerCombo(false);
+              damageNumbers.push(new FloatingText(`-${dmg}`, enemy.x, enemy.y - 15, '#ffffff'));
+            }
+
+            enemy.takeDamage(dmg, hitWeakPoint);
+
+            // Solar Pierce penetrates multiple foes
+            if (arrow.spec.id === 0) { // Solar Pierce
+              spawnBurst(arrow.x, arrow.y, '#ffd768', 10, hitWeakPoint);
+              // Knockback
+              enemy.x += arrow.spec.knockback;
+              if (arrow.piercedEnemies.size >= arrow.spec.pierceCount) {
+                arrow.active = false;
+              }
+            } else if (arrow.spec.id === 1) { // Lotus Bloom explodes on first contact
+              bloomZones.push(new LotusBloomZone(arrow.x, arrow.y, arrow.spec.bloomRadius, arrow.spec.bloomDuration, arrow.spec.bloomTickDamage));
+              sound.playBloomDetonation();
+              spawnBurst(arrow.x, arrow.y, '#f472b6', 26, true);
+              arrow.active = false;
+            } else { // Sky Volley
+              spawnBurst(arrow.x, arrow.y, '#7dd3fc', 12, hitWeakPoint);
+              arrow.active = false;
+            }
+          }
+        });
+      });
+    }
+
+    function registerCombo(isWeakPoint) {
+      state.combo++;
+      state.comboTimer = 3.5;
+      const banner = document.getElementById('comboBanner');
+      const text = document.getElementById('comboText');
+      if (state.combo > 1) {
+        banner.style.opacity = '1';
+        text.innerText = isWeakPoint ? `${state.combo}× CORE CHAIN!` : `${state.combo}× COMBO`;
+      }
+    }
+
+    function updateCombo(dt) {
+      if (state.combo > 0) {
+        state.comboTimer -= dt;
+        if (state.comboTimer <= 0) {
+          state.combo = 0;
+          document.getElementById('comboBanner').style.opacity = '0';
+        }
+      }
+    }
+
+    /* ==========================================================================
+       SANCTUM HEALTH & WAVE SYSTEM
+       ========================================================================== */
+    function damageSanctum(amount) {
+      state.sanctumHp = Math.max(0, state.sanctumHp - amount);
+      triggerScreenShake(12);
+
+      const hpPercent = (state.sanctumHp / CONFIG.sanctumMaxHp) * 100;
+      document.getElementById('hpFill').style.width = `${hpPercent}%`;
+      document.getElementById('hpText').innerText = `${state.sanctumHp} / ${CONFIG.sanctumMaxHp}`;
+
+      if (state.sanctumHp <= 0 && !state.isGameOver) {
+        gameOver(false);
+      }
+    }
+
+    function startWave(waveNum) {
+      state.wave = waveNum;
+      state.waveInProgress = true;
+      document.getElementById('waveLabel').innerText = `Wave ${waveNum} / ${state.maxWaves}`;
+
+      // Wave Enemy Composition
+      state.enemiesToSpawn = [];
+      const waveFactor = 1 + (waveNum - 1) * 0.35;
+
+      const waveConfigs = [
+        { stalkers: 5, harpies: 2, goliaths: 0, title: "WAVE 1: PURGE THE SHADOWS", sub: "Corrupted void outrunners approach" },
+        { stalkers: 7, harpies: 5, goliaths: 0, title: "WAVE 2: WINGED HARPIES", sub: "Airborne corruption infests the skies" },
+        { stalkers: 8, harpies: 6, goliaths: 1, title: "WAVE 3: ABYSSAL TITAN", sub: "Heavy armored Goliath breaches the plains" },
+        { stalkers: 12, harpies: 9, goliaths: 2, title: "WAVE 4: TWILIGHT SIEGE", sub: "Swarm incursion from all vectors" },
+        { stalkers: 14, harpies: 12, goliaths: 3, title: "FINAL PURGE: THE APEX CORRUPTION", sub: "Defend the sacred Sun Lotus at all costs!" },
+      ];
+
+      const currentConfig = waveConfigs[waveNum - 1];
+
+      // Show Banner Announcement
+      showBanner(currentConfig.title, currentConfig.sub);
+
+      // Build spawn queue
+      for (let i = 0; i < currentConfig.stalkers; i++) state.enemiesToSpawn.push({ type: 'stalker', delay: 1.5 + i * 2.2 });
+      for (let i = 0; i < currentConfig.harpies; i++) state.enemiesToSpawn.push({ type: 'harpy', delay: 3.0 + i * 2.6 });
+      for (let i = 0; i < currentConfig.goliaths; i++) state.enemiesToSpawn.push({ type: 'goliath', delay: 8.0 + i * 11.0 });
+
+      // Sort spawns by delay
+      state.enemiesToSpawn.sort((a, b) => a.delay - b.delay);
+      state.waveTimer = 0;
+    }
+
+    function updateWave(dt) {
+      if (!state.waveInProgress) return;
+      state.waveTimer += dt;
+
+      // Spawn due enemies
+      while (state.enemiesToSpawn.length > 0 && state.enemiesToSpawn[0].delay <= state.waveTimer) {
+        const item = state.enemiesToSpawn.shift();
+        enemies.push(new Enemy(item.type, 1 + (state.wave - 1) * 0.35));
+      }
+
+      // Check wave completion
+      if (state.enemiesToSpawn.length === 0 && enemies.length === 0) {
+        state.waveInProgress = false;
+        if (state.wave < state.maxWaves) {
+          showBanner(`WAVE ${state.wave} CLEARED!`, "The altar absorbs radiant holy essence (+200 HP)");
+          state.sanctumHp = Math.min(CONFIG.sanctumMaxHp, state.sanctumHp + 200);
+          damageSanctum(0); // Update HUD
+          setTimeout(() => {
+            startWave(state.wave + 1);
+          }, 3200);
+        } else {
+          gameOver(true); // Victory!
+        }
+      }
+    }
+
+    function showBanner(title, subtitle) {
+      const banner = document.getElementById('bannerOverlay');
+      const t = document.getElementById('bannerTitle');
+      const s = document.getElementById('bannerSubtitle');
+      t.innerText = title;
+      s.innerText = subtitle;
+      banner.classList.remove('opacity-0');
+      setTimeout(() => {
+        banner.classList.add('opacity-0');
+      }, 2600);
+    }
+
+    function updateScoreHUD() {
+      document.getElementById('scoreLabel').innerText = `Score: ${state.score}`;
+    }
+
+    function gameOver(isVictory) {
+      state.isGameOver = true;
+      state.isVictory = isVictory;
+
+      const modal = document.getElementById('endModal');
+      const title = document.getElementById('endTitle');
+      const sub = document.getElementById('endSubtitle');
+      const icon = document.getElementById('endIcon');
+
+      if (isVictory) {
+        icon.innerText = "??";
+        title.innerText = "Sanctum Preserved";
+        sub.innerText = "The Oath of the Sun Lotus remains eternal.";
+      } else {
+        icon.innerText = "??";
+        title.innerText = "Sanctum Shattered";
+        sub.innerText = "The corruption overcame the sacred light.";
+      }
+
+      const acc = state.stats.shotsFired > 0 
+        ? Math.round((state.stats.shotsHit / state.stats.shotsFired) * 100) 
+        : 0;
+
+      document.getElementById('statScore').innerText = state.score;
+      document.getElementById('statWeakPoints').innerText = state.stats.weakPointsHit;
+      document.getElementById('statAccuracy').innerText = `${acc}%`;
+      document.getElementById('statWaves').innerText = `${state.wave} / ${state.maxWaves}`;
+
+      modal.classList.remove('hidden');
+    }
+
+    function restartGame() {
+      document.getElementById('endModal').classList.add('hidden');
+      state.score = 0;
+      state.sanctumHp = CONFIG.sanctumMaxHp;
+      state.isGameOver = false;
+      state.isVictory = false;
+      state.stats = { shotsFired: 0, shotsHit: 0, weakPointsHit: 0, enemiesPurged: 0 };
+      arrows = [];
+      enemies = [];
+      particles = [];
+      bloomZones = [];
+      damageNumbers = [];
+      ARROW_SPECS.forEach(a => a.currentCd = 0);
+      damageSanctum(0);
+      updateScoreHUD();
+      startWave(1);
+    }
+
+    /* ==========================================================================
+       SACRED QUIVER & CONTROLS INTERACTION
+       ========================================================================== */
+    function selectArrowType(index) {
+      if (ARROW_SPECS[index].currentCd > 0) return;
+      state.selectedArrow = index;
+      for (let i = 0; i < 3; i++) {
+        const btn = document.getElementById(`arrowBtn-${i}`);
+        if (i === index) {
+          btn.classList.add('border-2', 'scale-105', 'shadow-lg');
+          btn.classList.remove('opacity-85');
+        } else {
+          btn.classList.remove('border-2', 'scale-105', 'shadow-lg');
+          btn.classList.add('opacity-85');
+        }
+      }
+      sound.playChime(500 + index * 180, 0.2);
+    }
+
+    function updateCooldowns(dt) {
+      ARROW_SPECS.forEach((spec, idx) => {
+        if (spec.currentCd > 0) {
+          spec.currentCd -= dt;
+          const overlay = document.getElementById(`cooldown-${idx}`);
+          if (overlay) {
+            if (spec.currentCd > 0) {
+              overlay.classList.remove('hidden');
+              overlay.classList.add('flex');
+              overlay.innerText = spec.currentCd.toFixed(1);
+            } else {
+              spec.currentCd = 0;
+              overlay.classList.add('hidden');
+              overlay.classList.remove('flex');
+            }
+          }
+        }
+      });
+    }
+
+    // Keyboard Hotkeys: 1, 2, 3
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '1') selectArrowType(0);
+      if (e.key === '2') selectArrowType(1);
+      if (e.key === '3') selectArrowType(2);
+    });
+
+    // Touch & Pointer Drag Aiming
+    function onPointerDown(e) {
+      if (state.isGameOver) return;
+      sound.init();
+
+      // Hide the initial drag hint after first attempt
+      if (!aim.hasInteracted) {
+        aim.hasInteracted = true;
+        document.getElementById('aimHint').style.opacity = '0';
+      }
+
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      // Only initiate aim if not clicking bottom menu
+      if (clientY > H - 100) return;
+
+      aim.isDragging = true;
+      aim.startX = clientX;
+      aim.startY = clientY;
+      aim.currentX = clientX;
+      aim.currentY = clientY;
+      aim.power = 0;
+      aim.drawRatio = 0;
+    }
+
+    function onPointerMove(e) {
+      if (!aim.isDragging) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      aim.currentX = clientX;
+      aim.currentY = clientY;
+
+      // Vector pulling away from drag start determines aim angle
+      const dx = aim.startX - aim.currentX;
+      const dy = aim.startY - aim.currentY;
+      const dist = Math.hypot(dx, dy);
+
+      aim.power = Math.min(CONFIG.maxDrawDist, Math.max(0, dist));
+      aim.drawRatio = aim.power / CONFIG.maxDrawDist;
+      aim.angle = Math.atan2(-dy, -dx); // Pull backwards to shoot forwards
+
+      sound.playBowDraw(aim.drawRatio);
+    }
+
+    function onPointerUp() {
+      if (!aim.isDragging) return;
+      aim.isDragging = false;
+
+      // Minimum pull threshold to fire
+      if (aim.power >= CONFIG.minDrawDist) {
+        fireArrow();
+      }
+    }
+
+    function fireArrow() {
+      const arrowSpec = ARROW_SPECS[state.selectedArrow];
+      if (arrowSpec.currentCd > 0) return;
+
+      const archer = getArcherPos();
+      const originX = archer.x + 16;
+      const originY = archer.y - 35;
+
+      const speed = aim.power * CONFIG.powerMultiplier;
+      const vx = Math.cos(aim.angle) * speed;
+      const vy = Math.sin(aim.angle) * speed;
+
+      arrows.push(new Arrow(originX, originY, vx, vy, arrowSpec));
+      state.stats.shotsFired++;
+      sound.playRelease(arrowSpec.id);
+
+      // Trigger cooldown for special arrows
+      if (arrowSpec.cooldown > 0) {
+        arrowSpec.currentCd = arrowSpec.cooldown;
+        // Revert to Solar Pierce if on CD
+        selectArrowType(0);
+      }
+    }
+
+    window.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+
+    window.addEventListener('touchstart', onPointerDown, { passive: false });
+    window.addEventListener('touchmove', onPointerMove, { passive: false });
+    window.addEventListener('touchend', onPointerUp);
+
+    // Audio & UI Dialog Events
+    document.getElementById('soundBtn').addEventListener('click', () => {
+      sound.init();
+      sound.enabled = !sound.enabled;
+      document.getElementById('soundIconOn').classList.toggle('hidden', !sound.enabled);
+      document.getElementById('soundIconOff').classList.toggle('hidden', sound.enabled);
+    });
+
+    const helpModal = document.getElementById('helpModal');
+    document.getElementById('helpBtn').addEventListener('click', () => {
+      helpModal.classList.remove('hidden');
+    });
+    document.getElementById('closeHelpBtn').addEventListener('click', () => {
+      helpModal.classList.add('hidden');
+    });
+    document.getElementById('startPlayBtn').addEventListener('click', () => {
+      sound.init();
+      helpModal.classList.add('hidden');
+    });
+    document.getElementById('restartBtn').addEventListener('click', restartGame);
+
+    /* ==========================================================================
+       MAIN GAME LOOP
+       ========================================================================== */
+    let lastTime = performance.now();
+
+    function gameLoop(currentTime) {
+      const dt = Math.min(0.1, (currentTime - lastTime) / 1000);
+      lastTime = currentTime;
+
+      // Update Systems
+      updateCooldowns(dt);
+      updateCombo(dt);
+      updateWave(dt);
+
+      // Update Entities
+      arrows.forEach(a => a.update(dt));
+      arrows = arrows.filter(a => a.active);
+
+      enemies.forEach(e => e.update(dt));
+      enemies = enemies.filter(e => e.active);
+
+      particles.forEach(p => p.update(dt));
+      particles = particles.filter(p => p.life > 0);
+
+      bloomZones.forEach(b => b.update(dt));
+      bloomZones = bloomZones.filter(b => b.duration > 0);
+
+      damageNumbers.forEach(d => d.update(dt));
+      damageNumbers = damageNumbers.filter(d => d.life > 0);
+
+      checkCollisions();
+
+      // Render Stage
+      ctx.save();
+      ctx.clearRect(0, 0, W, H);
+
+      applyScreenShake(ctx);
+
+      // 1. Celestial Sunset & Mountains Background
+      renderBackground(ctx);
+
+      // 2. Active Lotus Bloom AoE Zones
+      bloomZones.forEach(b => b.draw(ctx));
+
+      // 3. Enemies
+      enemies.forEach(e => e.draw(ctx));
+
+      // 4. Sacred Archer Princess & Sanctum Pedestal
+      renderArcherAndSanctum(ctx);
+
+      // 5. In-flight Ballistic Arrows
+      arrows.forEach(a => a.draw(ctx));
+
+      // 6. Dotted Predictive Trajectory Arc
+      renderTrajectoryPrediction(ctx);
+
+      // 7. Golden & Lotus Particle Bursts
+      particles.forEach(p => p.draw(ctx));
+
+      // 8. Floating Combat Text
+      damageNumbers.forEach(d => d.draw(ctx));
+
+      ctx.restore();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Initialize and start on window load
+    window.onload = function () {
+      resizeCanvas();
+      selectArrowType(0);
+      startWave(1);
+      requestAnimationFrame(gameLoop);
+    };
+
+  </script>
+</body>
+</html>

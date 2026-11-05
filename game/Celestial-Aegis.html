@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Oath: Celestial Aegis</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      -webkit-touch-callout: none;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #060814;
+      overflow: hidden;
+    }
+    .cinzel {
+      font-family: 'Cinzel', serif;
+    }
+    .btn-touch:active {
+      transform: scale(0.92);
+      filter: brightness(1.25);
+    }
+    .glow-gold {
+      box-shadow: 0 0 25px rgba(251, 191, 36, 0.45);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+    }
+  </style>
+</head>
+<body class="relative w-screen h-screen flex flex-col items-center justify-center bg-[#050711] text-gray-100">
+
+  <!-- Main Game Container -->
+  <div id="game-container" class="relative w-full h-full flex items-center justify-center overflow-hidden">
+    <canvas id="gameCanvas" class="w-full h-full block bg-transparent"></canvas>
+
+    <!-- Top HUD Overlay -->
+    <div class="absolute top-0 left-0 right-0 p-3 sm:p-5 flex justify-between items-start pointer-events-none z-20">
+      <!-- Player Sanctum HP & Lotus Shield -->
+      <div class="flex flex-col gap-1.5 w-48 sm:w-64 pointer-events-auto">
+        <div class="flex items-center gap-2">
+          <span class="cinzel text-[11px] sm:text-xs font-bold tracking-widest text-amber-300 w-12">SANCTUM</span>
+          <div class="relative w-full h-3 sm:h-3.5 bg-gray-950/80 rounded-full overflow-hidden border border-amber-500/40 shadow-inner">
+            <div id="hud-hp-fill" class="h-full bg-gradient-to-r from-amber-600 via-amber-400 to-yellow-200 w-full transition-all duration-75"></div>
+          </div>
+          <span id="hud-hp-val" class="text-[10px] font-mono text-amber-200 w-10 text-right">100</span>
+        </div>
+
+        <!-- Solar Dawn Gauge -->
+        <div class="flex items-center gap-2">
+          <span class="cinzel text-[11px] sm:text-xs font-bold tracking-widest text-cyan-300 w-12">SOLAR</span>
+          <div class="relative w-full h-2.5 sm:h-3 bg-gray-950/80 rounded-full overflow-hidden border border-cyan-500/40 shadow-inner">
+            <div id="hud-oath-fill" class="h-full bg-gradient-to-r from-cyan-600 via-sky-400 to-indigo-300 w-0 transition-all duration-75"></div>
+          </div>
+          <span id="hud-oath-val" class="text-[10px] font-mono text-cyan-200 w-10 text-right">0%</span>
+        </div>
+      </div>
+
+      <!-- Center Wave & Score Display -->
+      <div class="flex flex-col items-center pointer-events-none">
+        <div class="px-3.5 py-1 bg-black/60 backdrop-blur-md border border-amber-500/30 rounded-full flex items-center gap-2 shadow-lg">
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+          <span id="hud-wave" class="cinzel text-xs sm:text-sm font-extrabold tracking-widest text-amber-100">WAVE 1</span>
+        </div>
+        <div class="text-[11px] font-mono text-gray-400 mt-1">SCORE: <span id="hud-score" class="text-amber-300 font-bold">0</span></div>
+      </div>
+
+      <!-- Top Right: Pause Button -->
+      <div class="pointer-events-auto">
+        <button id="btn-pause" onclick="game.togglePause()" class="btn-touch px-3 py-1.5 rounded-lg bg-black/60 border border-amber-500/30 text-amber-200 text-xs font-bold cinzel flex items-center gap-1.5 backdrop-blur-sm shadow-lg">
+          <span id="btn-pause-icon">??</span>
+          <span class="hidden sm:inline">PAUSE</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Center Aim Reticle Hint (Fades out once user touches) -->
+    <div id="aim-hint" class="absolute pointer-events-none text-[11px] text-amber-200/70 font-mono text-center tracking-wider bg-black/50 px-3 py-1.5 rounded-full border border-amber-500/20 transition-opacity duration-700">
+      Drag or click anywhere to aim & shoot 360°
+    </div>
+
+    <!-- Bottom Controls (Arrow Selection & Solar Burst) -->
+    <div class="absolute bottom-5 left-0 right-0 px-4 sm:px-8 flex justify-between items-end pointer-events-none z-20">
+      <!-- Arrow Type Stance Switcher (Left Thumb) -->
+      <div class="flex items-center gap-2 pointer-events-auto bg-black/60 backdrop-blur-md p-1.5 rounded-2xl border border-gray-800">
+        <button id="arrow-pierce" onclick="game.setArrowMode('PIERCE')" class="btn-touch px-3 py-2 rounded-xl text-xs font-bold cinzel transition-all bg-amber-900/60 border border-amber-400 text-amber-200">
+          ?? PIERCE
+        </button>
+        <button id="arrow-scatter" onclick="game.setArrowMode('SCATTER')" class="btn-touch px-3 py-2 rounded-xl text-xs font-bold cinzel transition-all bg-slate-900/60 border border-slate-700 text-gray-400">
+          ? VOLLEY
+        </button>
+      </div>
+
+      <!-- Sacred Solar Bloom (Super Attack) (Right Thumb) -->
+      <div class="pointer-events-auto">
+        <button id="btn-super" onclick="game.triggerSuper()" class="btn-touch relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-950/80 border-2 border-gray-700 text-gray-500 font-black cinzel text-[11px] sm:text-xs flex flex-col items-center justify-center transition-all shadow-xl active:scale-95">
+          <span>DAWN</span>
+          <span class="text-[8px] font-mono opacity-70">BURST</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Pause Modal (10% Dark Dim) -->
+    <div id="pause-modal" class="absolute inset-0 bg-black/10 z-30 flex flex-col items-center justify-center hidden">
+      <h2 class="cinzel text-3xl sm:text-5xl font-black text-amber-300 tracking-wider mb-2 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]">OATH PAUSED</h2>
+      <p class="text-gray-100 font-mono text-xs sm:text-sm mb-6 text-center max-w-xs drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">The celestial sanctum rests.</p>
+      <div class="flex flex-col gap-3 w-48">
+        <button onclick="game.togglePause()" class="cinzel w-full py-2.5 rounded-lg bg-gradient-to-r from-amber-700 to-yellow-600 text-white font-bold tracking-widest border border-amber-300 shadow-lg text-xs">
+          RESUME [P]
+        </button>
+        <button onclick="game.restart()" class="cinzel w-full py-2.5 rounded-lg bg-slate-900/90 text-gray-300 font-bold tracking-widest border border-gray-700 text-xs">
+          RESTART
+        </button>
+      </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="absolute inset-0 bg-black/85 backdrop-blur-md z-30 flex flex-col items-center justify-center hidden">
+      <h2 class="cinzel text-3xl sm:text-5xl font-black text-red-500 tracking-wider mb-2 drop-shadow-[0_0_20px_rgba(239,68,68,0.7)]">SANCTUM FALLEN</h2>
+      <p id="game-over-stats" class="text-gray-300 font-mono text-sm mb-6 text-center max-w-xs">The sacred lotus was overrun.</p>
+      <button onclick="game.restart()" class="cinzel px-8 py-3 rounded-lg bg-gradient-to-r from-amber-700 to-yellow-600 text-white font-bold tracking-widest border border-amber-400 shadow-xl">
+        PURIFY AGAIN
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       SYNTHESIZED SACRED SOUND ENGINE (Web Audio API)
+       ========================================================================== */
+    class SacredSoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.master = null;
+        this.ready = false;
+      }
+      init() {
+        if (this.ready) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+        this.master = this.ctx.createGain();
+        this.master.gain.setValueAtTime(0.28, this.ctx.currentTime);
+        this.master.connect(this.ctx.destination);
+        this.ready = true;
+      }
+      playShoot() {
+        if (!this.ready) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(850, t);
+        osc.frequency.exponentialRampToValueAtTime(220, t + 0.12);
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+        osc.connect(gain);
+        gain.connect(this.master);
+        osc.start(t);
+        osc.stop(t + 0.14);
+      }
+      playHit() {
+        if (!this.ready) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1400, t);
+        osc.frequency.exponentialRampToValueAtTime(400, t + 0.08);
+        gain.gain.setValueAtTime(0.35, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+        osc.connect(gain);
+        gain.connect(this.master);
+        osc.start(t);
+        osc.stop(t + 0.1);
+      }
+      playSuper() {
+        if (!this.ready) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, t);
+        osc.frequency.exponentialRampToValueAtTime(45, t + 0.5);
+        gain.gain.setValueAtTime(0.7, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+        osc.connect(gain);
+        gain.connect(this.master);
+        osc.start(t);
+        osc.stop(t + 0.6);
+      }
+    }
+    const sound = new SacredSoundEngine();
+    window.addEventListener('pointerdown', () => sound.init(), { once: true });
+
+    /* ==========================================================================
+       PARTICLES & PETALS
+       ========================================================================== */
+    class PetalParticle {
+      constructor(x, y, vx, vy, color, size, life) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.color = color;
+        this.size = size;
+        this.maxLife = life;
+        this.life = life;
+        this.rot = Math.random() * Math.PI * 2;
+        this.vRot = (Math.random() - 0.5) * 0.1;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.rot += this.vRot;
+        this.life--;
+      }
+      draw(ctx) {
+        const alpha = Math.max(0, this.life / this.maxLife);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rot);
+        ctx.fillStyle = this.color;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, this.size, this.size * 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       RADIANT ARROW
+       ========================================================================== */
+    class Arrow {
+      constructor(x, y, angle, type = 'PIERCE') {
+        this.x = x;
+        this.y = y;
+        this.angle = angle;
+        this.type = type;
+        this.speed = type === 'PIERCE' ? 12.5 : 10.5;
+        this.vx = Math.cos(angle) * this.speed;
+        this.vy = Math.sin(angle) * this.speed;
+        this.pierceCount = type === 'PIERCE' ? 2 : 1;
+        this.life = 120;
+        this.damage = type === 'PIERCE' ? 45 : 28;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life--;
+      }
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 10;
+
+        // Arrow Shaft
+        ctx.beginPath();
+        ctx.moveTo(-18, 0);
+        ctx.lineTo(8, 0);
+        ctx.stroke();
+
+        // Feather Fletching (White-Gold Wings)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(-18, 0);
+        ctx.lineTo(-24, -4);
+        ctx.lineTo(-21, 0);
+        ctx.lineTo(-24, 4);
+        ctx.closePath();
+        ctx.fill();
+
+        // Glowing Arrowhead Tip
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(8, 0, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       CORRUPTED SPECTER (ENEMY)
+       ========================================================================== */
+    class Specter {
+      constructor(x, y, targetX, targetY, isElite = false) {
+        this.x = x;
+        this.y = y;
+        this.targetX = targetX;
+        this.targetY = targetY;
+        this.isElite = isElite;
+        this.hp = isElite ? 110 : 35;
+        this.maxHp = this.hp;
+        this.radius = isElite ? 22 : 14;
+        this.speed = isElite ? 1.1 : 1.75;
+        this.wobble = Math.random() * 100;
+      }
+      update() {
+        this.wobble += 0.05;
+        const dx = this.targetX - this.x;
+        const dy = this.targetY - this.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > 1) {
+          this.x += (dx / dist) * this.speed;
+          this.y += (dy / dist) * this.speed;
+        }
+      }
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // Sinister Dark Aura
+        ctx.fillStyle = this.isElite ? '#4c0519' : '#1e1b4b';
+        ctx.shadowColor = this.isElite ? '#e11d48' : '#6366f1';
+        ctx.shadowBlur = 12;
+
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glowing Core
+        ctx.fillStyle = this.isElite ? '#fb7185' : '#a5b4fc';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Mini HP Bar
+        if (this.hp < this.maxHp) {
+          const barW = this.radius * 2;
+          ctx.fillStyle = '#111827';
+          ctx.fillRect(-barW / 2, -this.radius - 8, barW, 3);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(-barW / 2, -this.radius - 8, barW * (this.hp / this.maxHp), 3);
+        }
+
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       MAIN GAME CONTROLLER
+       ========================================================================== */
+    class RadialArcherGame {
+      constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+
+        this.centerX = this.width / 2;
+        this.centerY = this.height / 2;
+
+        this.aimAngle = -Math.PI / 2; // Default aimed straight up
+        this.isAiming = false;
+        this.fireCooldown = 0;
+        this.arrowMode = 'PIERCE'; // 'PIERCE' or 'SCATTER'
+
+        this.hp = 100;
+        this.solarMeter = 0;
+        this.score = 0;
+        this.wave = 1;
+        this.isPaused = false;
+
+        this.arrows = [];
+        this.specters = [];
+        this.petals = [];
+
+        this.init();
+      }
+
+      init() {
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.setupTouchAndPointer();
+        this.setupKeyboard();
+        this.spawnWave();
+
+        requestAnimationFrame(() => this.loop());
+      }
+
+      resize() {
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = this.width * dpr;
+        this.canvas.height = this.height * dpr;
+        this.ctx.scale(dpr, dpr);
+
+        this.centerX = this.width / 2;
+        this.centerY = this.height / 2;
+      }
+
+      setArrowMode(mode) {
+        this.arrowMode = mode;
+        const pierceBtn = document.getElementById('arrow-pierce');
+        const scatterBtn = document.getElementById('arrow-scatter');
+
+        if (mode === 'PIERCE') {
+          pierceBtn.className = "btn-touch px-3 py-2 rounded-xl text-xs font-bold cinzel transition-all bg-amber-900/60 border border-amber-400 text-amber-200";
+          scatterBtn.className = "btn-touch px-3 py-2 rounded-xl text-xs font-bold cinzel transition-all bg-slate-900/60 border border-slate-700 text-gray-400";
+        } else {
+          scatterBtn.className = "btn-touch px-3 py-2 rounded-xl text-xs font-bold cinzel transition-all bg-amber-900/60 border border-amber-400 text-amber-200";
+          pierceBtn.className = "btn-touch px-3 py-2 rounded-xl text-xs font-bold cinzel transition-all bg-slate-900/60 border border-slate-700 text-gray-400";
+        }
+      }
+
+      setupTouchAndPointer() {
+        const updatePointer = (e) => {
+          const rect = this.canvas.getBoundingClientRect();
+          const px = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+          const py = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+          this.aimAngle = Math.atan2(py - this.centerY, px - this.centerX);
+        };
+
+        window.addEventListener('pointerdown', (e) => {
+          if (e.target.closest('button')) return;
+          this.isAiming = true;
+          updatePointer(e);
+          const hint = document.getElementById('aim-hint');
+          if (hint) hint.style.opacity = '0';
+        });
+
+        window.addEventListener('pointermove', (e) => {
+          if (this.isAiming) updatePointer(e);
+        });
+
+        window.addEventListener('pointerup', () => {
+          this.isAiming = false;
+        });
+      }
+
+      setupKeyboard() {
+        window.addEventListener('keydown', (e) => {
+          if (e.code === 'KeyP' || e.code === 'Escape') this.togglePause();
+          if (e.code === 'Digit1') this.setArrowMode('PIERCE');
+          if (e.code === 'Digit2') this.setArrowMode('SCATTER');
+          if (e.code === 'Space') this.triggerSuper();
+        });
+      }
+
+      spawnWave() {
+        const count = 6 + this.wave * 3;
+        for (let i = 0; i < count; i++) {
+          setTimeout(() => {
+            if (this.hp <= 0) return;
+            const spawnAngle = Math.random() * Math.PI * 2;
+            const spawnDist = Math.max(this.width, this.height) * 0.65 + 40;
+            const sx = this.centerX + Math.cos(spawnAngle) * spawnDist;
+            const sy = this.centerY + Math.sin(spawnAngle) * spawnDist;
+            const isElite = Math.random() < 0.25 && this.wave >= 2;
+            this.specters.push(new Specter(sx, sy, this.centerX, this.centerY, isElite));
+          }, i * 1100);
+        }
+        document.getElementById('hud-wave').textContent = `WAVE ${this.wave}`;
+      }
+
+      fireArrow() {
+        sound.playShoot();
+        if (this.arrowMode === 'PIERCE') {
+          this.arrows.push(new Arrow(this.centerX, this.centerY, this.aimAngle, 'PIERCE'));
+        } else {
+          // Volley 3-Way Spread
+          [-0.2, 0, 0.2].forEach(offset => {
+            this.arrows.push(new Arrow(this.centerX, this.centerY, this.aimAngle + offset, 'SCATTER'));
+          });
+        }
+      }
+
+      triggerSuper() {
+        if (this.solarMeter < 100) return;
+        this.solarMeter = 0;
+        sound.playSuper();
+
+        // 360-degree radial nova (18 arrows in a full ring)
+        const total = 20;
+        for (let i = 0; i < total; i++) {
+          const a = (i / total) * Math.PI * 2;
+          this.arrows.push(new Arrow(this.centerX, this.centerY, a, 'PIERCE'));
+        }
+
+        // Blossom burst VFX
+        for (let i = 0; i < 40; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const s = Math.random() * 6 + 2;
+          this.petals.push(new PetalParticle(this.centerX, this.centerY, Math.cos(a) * s, Math.sin(a) * s, '#fbcfe8', Math.random() * 4 + 2, 45));
+        }
+      }
+
+      togglePause() {
+        this.isPaused = !this.isPaused;
+        const modal = document.getElementById('pause-modal');
+        const icon = document.getElementById('btn-pause-icon');
+        if (this.isPaused) {
+          modal.classList.remove('hidden');
+          icon.textContent = '??';
+        } else {
+          modal.classList.add('hidden');
+          icon.textContent = '??';
+        }
+      }
+
+      restart() {
+        this.hp = 100;
+        this.solarMeter = 0;
+        this.score = 0;
+        this.wave = 1;
+        this.arrows = [];
+        this.specters = [];
+        this.petals = [];
+        this.isPaused = false;
+        document.getElementById('pause-modal').classList.add('hidden');
+        document.getElementById('game-over-modal').classList.add('hidden');
+        this.spawnWave();
+      }
+
+      drawAltarAndPrincess() {
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.translate(this.centerX, this.centerY);
+
+        // 1. Carved Lotus Pedestal (from image)
+        ctx.fillStyle = '#292524';
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 12;
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 36, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner Sacred Bloom Ring
+        ctx.fillStyle = '#44403c';
+        ctx.beginPath();
+        ctx.arc(0, 0, 26, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. Archer Rotation Hierarchy (Points toward aim angle)
+        ctx.rotate(this.aimAngle);
+
+        // Flowing White-Gold Robe / Dress
+        ctx.fillStyle = '#fafaf9';
+        ctx.shadowColor = '#fef08a';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.ellipse(-10, 0, 16, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Gold Trim Sash
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Feather-and-Gold Winged Bow
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 3.5;
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 14;
+
+        ctx.beginPath();
+        ctx.arc(14, 0, 22, -0.9, 0.9, false);
+        ctx.stroke();
+
+        // Ruby Solar Core on Bow Center (from image)
+        ctx.fillStyle = '#ef4444';
+        ctx.shadowColor = '#dc2626';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(18, 0, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Drawn Bowstring
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(14 + Math.cos(-0.9) * 22, Math.sin(-0.9) * 22);
+        ctx.lineTo(2, 0);
+        ctx.lineTo(14 + Math.cos(0.9) * 22, Math.sin(0.9) * 22);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      loop() {
+        if (!this.isPaused && this.hp > 0) {
+          // Auto-fire while finger/mouse held down
+          if (this.isAiming) {
+            this.fireCooldown--;
+            if (this.fireCooldown <= 0) {
+              this.fireArrow();
+              this.fireCooldown = this.arrowMode === 'PIERCE' ? 14 : 20;
+            }
+          } else {
+            this.fireCooldown = 0;
+          }
+
+          // Update Arrows
+          this.arrows.forEach(a => a.update());
+          this.arrows = this.arrows.filter(a => a.life > 0);
+
+          // Update Specters
+          this.specters.forEach(s => {
+            s.update();
+            // Check collision with center sanctum
+            const dist = Math.hypot(s.x - this.centerX, s.y - this.centerY);
+            if (dist < 36 + s.radius) {
+              this.hp = Math.max(0, this.hp - (s.isElite ? 22 : 10));
+              s.hp = 0; // Destroy specter
+              sound.playHit();
+            }
+          });
+
+          // Arrow vs Specter Hit Registration
+          this.arrows.forEach(a => {
+            this.specters.forEach(s => {
+              if (s.hp <= 0) return;
+              const d = Math.hypot(a.x - s.x, a.y - s.y);
+              if (d < s.radius + 6) {
+                s.hp -= a.damage;
+                a.pierceCount--;
+                sound.playHit();
+
+                // Spawn lotus blossom hit sparks
+                for (let i = 0; i < 4; i++) {
+                  this.petals.push(new PetalParticle(s.x, s.y, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, '#fbcfe8', 3, 20));
+                }
+
+                if (s.hp <= 0) {
+                  this.score += s.isElite ? 150 : 50;
+                  this.solarMeter = Math.min(100, this.solarMeter + (s.isElite ? 18 : 8));
+                }
+              }
+            });
+          });
+
+          // Clean up dead entities
+          this.arrows = this.arrows.filter(a => a.pierceCount > 0);
+          this.specters = this.specters.filter(s => s.hp > 0);
+
+          // Progress Wave
+          if (this.specters.length === 0) {
+            this.wave++;
+            this.spawnWave();
+          }
+
+          // Update Petals
+          this.petals.forEach(p => p.update());
+          this.petals = this.petals.filter(p => p.life > 0);
+
+          // Update HUD Values
+          document.getElementById('hud-hp-fill').style.width = `${this.hp}%`;
+          document.getElementById('hud-hp-val').textContent = Math.ceil(this.hp);
+          document.getElementById('hud-oath-fill').style.width = `${this.solarMeter}%`;
+          document.getElementById('hud-oath-val').textContent = `${Math.round(this.solarMeter)}%`;
+          document.getElementById('hud-score').textContent = this.score;
+
+          // Super Button Glow
+          const superBtn = document.getElementById('btn-super');
+          if (this.solarMeter >= 100) {
+            superBtn.className = "btn-touch relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 border-2 border-yellow-200 text-slate-950 font-black cinzel text-[11px] sm:text-xs flex flex-col items-center justify-center glow-gold animate-bounce";
+          } else {
+            superBtn.className = "btn-touch relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-950/80 border-2 border-gray-700 text-gray-500 font-black cinzel text-[11px] sm:text-xs flex flex-col items-center justify-center transition-all shadow-xl";
+          }
+
+          if (this.hp <= 0) {
+            document.getElementById('game-over-modal').classList.remove('hidden');
+            document.getElementById('game-over-stats').textContent = `Defended until Wave ${this.wave} with ${this.score} sacred score.`;
+          }
+        }
+
+        // Render Frame
+        this.ctx.clearRect(0, 0, this.width, this.height);
+
+        // Draw Celestial Radial Grid
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(245, 158, 11, 0.05)';
+        this.ctx.lineWidth = 1;
+        [100, 200, 300, 420].forEach(r => {
+          this.ctx.beginPath();
+          this.ctx.arc(this.centerX, this.centerY, r, 0, Math.PI * 2);
+          this.ctx.stroke();
+        });
+        this.ctx.restore();
+
+        // Draw Entities
+        this.arrows.forEach(a => a.draw(this.ctx));
+        this.specters.forEach(s => s.draw(this.ctx));
+        this.petals.forEach(p => p.draw(this.ctx));
+        this.drawAltarAndPrincess();
+
+        requestAnimationFrame(() => this.loop());
+      }
+    }
+
+    let game;
+    window.addEventListener('load', () => {
+      game = new RadialArcherGame();
+    });
+  </script>
+</body>
+</html>
