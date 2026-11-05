@@ -143,7 +143,7 @@
     </div>
 
     <!-- On-Screen Mobile Touch Controls -->
-    <div id="touch-controls" class="absolute bottom-40 left-0 right-0 px-4 sm:px-8 flex justify-between items-end z-20 pointer-events-none">
+    <div id="touch-controls" class="absolute bottom-32 left-0 right-0 px-4 sm:px-8 flex justify-between items-end z-20 pointer-events-none">
       <!-- Movement D-Pad (Left Thumb) -->
       <div class="flex items-end gap-2 pointer-events-auto select-none">
         <button id="btn-left" class="btn-touch w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gray-900/70 border border-gray-700/80 active:bg-cyan-950/70 text-gray-200 text-xl font-bold flex items-center justify-center backdrop-blur-sm shadow-xl active:scale-95">
@@ -159,22 +159,25 @@
       </div>
 
       <!-- Action Cluster (Right Thumb) -->
-      <div class="grid grid-cols-2 gap-2 sm:gap-2.5 pointer-events-auto select-none">
+      <div class="grid grid-cols-2 gap-1 sm:gap-1 pointer-events-auto select-none items-center justify-items-center">
         <!-- Roll / Dodge -->
-        <button id="btn-roll" class="btn-touch w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-900/80 border border-slate-600 text-slate-300 text-xs sm:text-sm font-bold cinzel flex items-center justify-center shadow-lg active:scale-95">
-          ROLL
+        <button id="btn-roll" class="btn-touch relative w-11 h-11 sm:w-15 sm:h-15 rounded-full p-0 overflow-hidden border-2 border-amber-800/80 shadow-[0_4px_12px_rgba(0,0,0,0.6)] active:scale-70 transition-transform">
+          <img src="img/button_roll.png" alt="Roll" class="w-full h-full object-cover pointer-events-none">
         </button>
+
         <!-- Jump -->
-        <button id="btn-jump" class="btn-touch w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-900/80 border border-slate-600 text-slate-300 text-xs sm:text-sm font-bold cinzel flex items-center justify-center shadow-lg active:scale-95">
-          JUMP
+        <button id="btn-jump" class="btn-touch relative w-11 h-11 sm:w-15 sm:h-15 rounded-full p-0 overflow-hidden border-2 border-amber-700/80 shadow-[0_4px_12px_rgba(0,0,0,0.6)] active:scale-70 transition-transform">
+          <img src="img/button_jump.png" alt="Jump" class="w-full h-full object-cover pointer-events-none">
         </button>
+
         <!-- Oath Surge (Super) -->
-        <button id="btn-surge" class="btn-touch w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-indigo-950/80 border border-indigo-500/70 text-indigo-300 text-[10px] sm:text-xs font-bold cinzel flex items-center justify-center shadow-lg active:scale-95">
-          SURGE
+        <button id="btn-surge" class="btn-touch relative w-11 h-11 sm:w-15 sm:h-15 rounded-full p-0 overflow-hidden border-2 border-purple-800/80 shadow-[0_4px_12px_rgba(0,0,0,0.6)] opacity-70 active:scale-70 transition-all">
+          <img src="img/button_surge.png" alt="Surge" class="w-full h-full object-cover pointer-events-none">
         </button>
-        <!-- Attack (Primary) -->
-        <button id="btn-attack" class="btn-touch w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-950/90 border-2 border-red-500 text-red-200 text-sm sm:text-base font-black cinzel flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.3)] active:scale-90">
-          SLASH
+
+        <!-- Slash / Attack (Primary - slightly larger for thumb focus) -->
+        <button id="btn-attack" class="btn-touch relative w-16 h-16 sm:w-18 sm:h-18 rounded-full p-0 overflow-hidden border-2 border-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.4)] active:scale-85 transition-transform">
+          <img src="img/button_slash.png" alt="Slash" class="w-full h-full object-cover pointer-events-none">
         </button>
       </div>
     </div>
@@ -1311,9 +1314,13 @@
           if (oathVal) oathVal.textContent = `${Math.round(this.player.oathMeter)}%`;
 
           if (this.player.oathMeter >= 100) {
-            surgeBtn.classList.add('glow-cyan', 'border-cyan-400', 'text-cyan-200');
+            // Full charge: remove dimming, add glowing ring and pulse animation
+            surgeBtn.classList.remove('opacity-70', 'border-purple-800/80');
+            surgeBtn.classList.add('opacity-100', 'border-fuchsia-400', 'glow-gold', 'ring-2', 'ring-purple-400', 'animate-pulse');
           } else {
-            surgeBtn.classList.remove('glow-cyan', 'border-cyan-400', 'text-cyan-200');
+            // Charging: keep slightly dimmed until ready
+            surgeBtn.classList.remove('opacity-100', 'border-fuchsia-400', 'glow-gold', 'ring-2', 'ring-purple-400', 'animate-pulse');
+            surgeBtn.classList.add('opacity-70', 'border-purple-800/80');
           }
         }
 
