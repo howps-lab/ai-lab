@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oath: Blade of the Bound - Teaser</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts for Cinzel & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            cinzel: ['Cinzel', 'serif'],
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            blade: {
+              gold: '#f59e0b',
+              crimson: '#dc2626',
+              dark: '#0a0d14',
+              panel: '#121722',
+              cyan: '#06b6d4',
+            }
+          },
+          animation: {
+            'pulse-glow': 'pulseGlow 3s infinite ease-in-out',
+            'shimmer': 'shimmer 2.5s infinite linear',
+          },
+          keyframes: {
+            pulseGlow: {
+              '0%, 100%': { boxShadow: '0 0 25px rgba(245, 158, 11, 0.25)' },
+              '50%': { boxShadow: '0 0 45px rgba(245, 158, 11, 0.55)' },
+            },
+            shimmer: {
+              '0%': { backgroundPosition: '-200% 0' },
+              '100%': { backgroundPosition: '200% 0' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Subtle scanline and background vignette styling */
+    .scanlines {
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.3) 50%
+      ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.03),
+        rgba(0, 255, 0, 0.01),
+        rgba(0, 0, 255, 0.03)
+      );
+      background-size: 100% 3px, 3px 100%;
+      pointer-events: none;
+    }
+    .radial-bg {
+      background: radial-gradient(circle at 50% 25%, #192233 0%, #0c0f17 55%, #05070a 100%);
+    }
+  </style>
+</head>
+<body class="radial-bg text-slate-100 min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-black font-sans relative overflow-x-hidden">
+
+  <!-- Ambient CRT / Atmospheric scanline overlay -->
+  <div class="fixed inset-0 scanlines z-20 pointer-events-none opacity-40"></div>
+
+  <!-- Ambient background glow elements -->
+  <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-amber-500/10 blur-[130px] rounded-full pointer-events-none"></div>
+  <div class="absolute bottom-10 left-1/4 w-[450px] h-[250px] bg-cyan-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+
+  <!-- Header / Navigation Bar -->
+  <header class="w-full border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center relative z-10 backdrop-blur-md bg-black/20">
+    <div class="flex items-center space-x-3">
+      <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+      <span class="text-xs tracking-[0.25em] text-red-400 font-semibold uppercase">Development Build</span>
+    </div>
+    <div class="text-xs text-slate-400 tracking-wider">
+      <span class="text-amber-400 font-medium">OATH</span> : BLADE OF THE BOUND
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 flex flex-col items-center justify-center px-4 py-10 md:py-14 relative z-10 max-w-5xl mx-auto w-full text-center">
+    
+    <!-- Title Section -->
+    <div class="mb-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs md:text-sm font-medium tracking-wide">
+      <svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+      </svg>
+      <span>Interactive Teaser Preview</span>
+    </div>
+
+    <h1 class="font-cinzel text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-amber-500 drop-shadow-sm mb-4">
+      Game still under development
+    </h1>
+
+    <p class="text-lg md:text-2xl text-slate-300 font-light max-w-2xl leading-relaxed mb-8">
+      In the meantime click below for teaser game.<br class="hidden sm:inline" />
+      <span class="text-amber-400 font-medium"></span>
+    </p>
+
+    <!-- Clickable Game Teaser Showcase Card -->
+    <a href="https://howps-lab.github.io/ai-lab/game/Oath-Blade-of-the-Bound.html" 
+       target="_blank" 
+       rel="noopener noreferrer"
+       class="group relative block w-full max-w-3xl rounded-2xl overflow-hidden border border-amber-500/30 bg-slate-900/80 shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:border-amber-400 animate-pulse-glow hover:shadow-[0_0_50px_rgba(245,158,11,0.45)]">
+      
+      <!-- Card Image Container -->
+      <div class="relative w-full aspect-video overflow-hidden bg-slate-950 flex items-center justify-center">
+        <!-- Attached Teaser Screenshot -->
+        <img 
+          src="screenshot_oath-blade_large.jpg" 
+          alt="Oath: Blade of the Bound Gameplay Preview" 
+          onerror="this.src='https://placehold.co/1200x675/10141d/f59e0b?text=Play+Teaser+Game'"
+          class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+        />
+
+        <!-- Hover Overlay with Play Icon & Call To Action -->
+        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-85 group-hover:opacity-60 transition-opacity duration-300"></div>
+
+        <!-- Center Interactive CTA Badge -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center p-4">
+          <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-amber-600 to-amber-400 p-[2px] shadow-lg group-hover:scale-110 transition-transform duration-300">
+            <div class="w-full h-full rounded-full bg-slate-950/80 backdrop-blur-sm flex items-center justify-center">
+              <svg class="w-8 h-8 sm:w-10 sm:h-10 text-amber-300 ml-1 group-hover:text-amber-100 transition-colors" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+          <span class="mt-4 inline-block font-cinzel text-sm sm:text-base tracking-[0.2em] uppercase text-amber-200 font-bold drop-shadow-md">
+            Click to Launch Teaser
+          </span>
+          <span class="text-xs sm:text-sm text-slate-400 mt-1">Play early combat build directly in your browser</span>
+        </div>
+
+        <!-- Corner Tags -->
+        <!--<div class="absolute top-3 left-3 bg-slate-950/80 backdrop-blur border border-white/10 rounded-md px-2.5 py-1 text-[11px] font-mono text-cyan-400 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+          WAVE COMBAT SYSTEM
+        </div>
+
+        <div class="absolute top-3 right-3 bg-red-950/80 backdrop-blur border border-red-500/30 rounded-md px-2.5 py-1 text-[11px] font-mono text-red-300">
+          PROTOTYPE DEMO
+        </div>-->
+      </div>
+
+      <!-- Bottom action prompt banner -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 py-3.5 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div class="text-left text-xs text-slate-400">
+          <span class="text-white font-medium">Platform:</span> WebGL / Browser &bull; Touch &amp; Keyboard Supported
+        </div>
+        <div class="flex items-center text-amber-400 text-xs sm:text-sm font-semibold group-hover:translate-x-1 transition-transform duration-200">
+          <span>Play Teaser Game Now</span>
+          <svg class="w-4 h-4 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+          </svg>
+        </div>
+      </div>
+    </a>
+
+    <!-- Additional quick launch button for mobile accessibility -->
+    <div class="mt-8">
+      <a href="https://howps-lab.github.io/ai-lab/game/Oath-Blade-of-the-Bound.html" 
+         target="_blank" 
+         rel="noopener noreferrer"
+         class="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-xl font-cinzel font-bold text-sm tracking-wider uppercase text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:brightness-110 shadow-lg shadow-amber-500/20 active:scale-95 transition-all">
+        <span>Enter Teaser Battle</span>
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+        </svg>
+      </a>
+    </div>
+
+  </main>
+
+  <!-- Footer Section -->
+  <footer class="w-full border-t border-white/5 py-4 px-6 text-center text-xs text-slate-500 relative z-10">
+    <p>&copy; Oath: Blade of the Bound. All rights reserved. Work in progress.</p>
+  </footer>
+
+</body>
+</html>
