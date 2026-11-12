@@ -3,15 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Volume Profile Simulator (Irregular Price Action)</title>
+  <title>Volume Profile Simulator (Sticky Price Action)</title>
   <style>
     :root {
       --bg: #131722;
       --panel: #1e222d;
       --text: #d1d4dc;
       --grid: #2a2e39;
-      --poc: #f23645;
-      --val-vah: #2962ff;
+      --level-color: #ffdb29; 
       --buy: #089981;
       --sell: #f23645;
     }
@@ -195,9 +194,9 @@
   </div>
 
   <div class="controls">
-    <button class="btn-buy" id="btnBuy">Buy at Volume Area Low</button>
-    <button class="btn-close" id="btnClose" disabled>Exit at Point of Control</button>
-    <button class="btn-sell" id="btnSell">Sell at Volume Area High</button>
+    <button class="btn-buy" id="btnBuy">Buy at VAL</button>
+    <button class="btn-close" id="btnClose" disabled>Exit at POC</button>
+    <button class="btn-sell" id="btnSell">Sell at VAH</button>
   </div>
 
   <div class="disclaimer">
@@ -224,7 +223,6 @@
     let width, height;
     let priceHistory = [];
     const maxHistory = 300;
-    let time = 0;
     let currentPrice = basePrice;
 
     let position = 0; 
@@ -232,28 +230,50 @@
     let realizedPnL = 0;
     let tradeCount = 0;
 
-    // GENERATE ORGANIC IRREGULAR PRICE
+    // GENERATE HIGHLY ORGANIC, STICKY PRICE ACTION
+    let currentPriceBase = basePrice;
+    let targetZone = basePrice;
+    let zoneTicks = 0;
+    let generatorTime = 0;
+
     function getNextPrice() {
-      time += 0.015; // Overall speed
+      // 1. Manage the current "Zone" state
+      if (zoneTicks <= 0) {
+         // Randomly pick a new zone to magnetize the price towards
+         const zones = [
+           basePrice + amplitude * (0.8 + Math.random()*0.4), // High zone (VAH)
+           basePrice + amplitude * (0.8 + Math.random()*0.4), // Weighted extra high zone
+           basePrice - amplitude * (0.8 + Math.random()*0.4), // Low zone (VAL)
+           basePrice - amplitude * (0.8 + Math.random()*0.4), // Weighted extra low zone
+           basePrice + (Math.random() - 0.5) * amplitude      // Random middle/consolidation
+         ];
+         targetZone = zones[Math.floor(Math.random() * zones.length)];
+         
+         // Set how long the price will "stay down" or "stay up" in this zone (100 to 400 ticks)
+         zoneTicks = Math.floor(Math.random() * 300) + 100; 
+      }
+      zoneTicks--;
+
+      generatorTime += 0.02;
       
-      // Combine multiple sine waves of varying frequencies to break the mechanical pattern
-      const wave1 = Math.sin(time);
-      const wave2 = Math.sin(time * 1.83) * 0.5;
-      const wave3 = Math.sin(time * 2.71) * 0.3;
-      const organicWave = (wave1 + wave2 + wave3) / 1.8; // Normalized combination
+      // 2. Smoothly pull the underlying price towards the sticky target zone
+      currentPriceBase += (targetZone - currentPriceBase) * 0.015;
+
+      // 3. Add localized ranging/wobble so it isn't perfectly flat while stuck in a zone
+      const wobble = Math.sin(generatorTime * 3) * (amplitude * 0.15) + Math.cos(generatorTime * 7) * (amplitude * 0.1);
       
-      // Standard noise (tick jitter)
+      // 4. Standard tick noise
       let noise = (Math.random() - 0.5) * 4;
       
-      // Add occasional random spikes (fat tails/sudden liquidity grabs)
-      if (Math.random() > 0.93) {
-        noise += (Math.random() - 0.5) * 15;
+      // 5. Rare, aggressive liquidity spikes
+      if (Math.random() > 0.94) {
+        noise += (Math.random() - 0.5) * 16;
       }
       
-      return basePrice + (organicWave * amplitude) + noise;
+      return currentPriceBase + wobble + noise;
     }
 
-    // 1. Pre-fill mock data using the new irregular function
+    // Pre-fill mock data using the new sticky function
     for(let i = 0; i < maxHistory; i++) {
       priceHistory.push(getNextPrice());
     }
@@ -345,7 +365,6 @@
         return;
       }
 
-      // Update price using the irregular wave generator
       currentPrice = getNextPrice();
       
       priceHistory.push(currentPrice);
@@ -371,6 +390,7 @@
       const yVAH = getY(basePrice + amplitude);
       const yVAL = getY(basePrice - amplitude);
 
+      // Volume Profile Bell Curve
       ctx.fillStyle = 'rgba(41, 98, 255, 0.15)';
       const profileWidth = width * 0.3;
       for (let y = 0; y < height; y += 8) {
@@ -381,23 +401,27 @@
       }
 
       ctx.lineWidth = 2;
+      const levelColor = '#ffdb29'; 
       
-      ctx.strokeStyle = 'var(--val-vah)';
+      // VAH / VAL Lines
+      ctx.strokeStyle = levelColor;
       ctx.setLineDash([5, 5]);
       ctx.beginPath(); ctx.moveTo(0, yVAH); ctx.lineTo(width, yVAH); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(0, yVAL); ctx.lineTo(width, yVAL); ctx.stroke();
       
-      ctx.strokeStyle = 'var(--poc)';
+      // POC Line
+      ctx.strokeStyle = levelColor;
       ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(0, yPOC); ctx.lineTo(width, yPOC); ctx.stroke();
 
-      ctx.fillStyle = 'var(--text)';
+      // Text Labels
+      ctx.fillStyle = levelColor;
       ctx.font = '12px sans-serif';
-      ctx.fillText('VAH', width - 35, yVAH - 5);
-      ctx.fillText('VAL', width - 35, yVAL - 5);
-      ctx.fillStyle = 'var(--poc)';
-      ctx.fillText('POC', width - 35, yPOC - 5);
+      ctx.fillText('Volume Area High', width - 105, yVAH - 5);
+      ctx.fillText('Volume Area Low', width - 105, yVAL - 5);
+      ctx.fillText('Point Of Change', width - 95, yPOC - 5);
 
+      // Active Trade Line
       if (position !== 0) {
         const yEntry = getY(entryPrice);
         ctx.strokeStyle = position === 1 ? 'var(--buy)' : 'var(--sell)';
@@ -406,6 +430,7 @@
         ctx.setLineDash([]);
       }
 
+      // Price Line
       ctx.beginPath();
       ctx.strokeStyle = '#d1d4dc';
       ctx.lineWidth = 2;
