@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Volume Profile Simulator (Sticky Price Action)</title>
+  <title>Volume Profile Simulator (Truly Random Price Action)</title>
   <style>
     :root {
       --bg: #131722;
@@ -230,50 +230,57 @@
     let realizedPnL = 0;
     let tradeCount = 0;
 
-    // GENERATE HIGHLY ORGANIC, STICKY PRICE ACTION
+    // GENERATE TRULY RANDOM, UNPREDICTABLE PRICE ACTION
     let currentPriceBase = basePrice;
     let targetZone = basePrice;
     let zoneTicks = 0;
     let generatorTime = 0;
 
     function getNextPrice() {
-      // 1. Manage the current "Zone" state
+      // 1. Manage the current random "Zone" state
       if (zoneTicks <= 0) {
-         // Randomly pick a new zone to magnetize the price towards
-         const zones = [
-           basePrice + amplitude * (0.8 + Math.random()*0.4), // High zone (VAH)
-           basePrice + amplitude * (0.8 + Math.random()*0.4), // Weighted extra high zone
-           basePrice - amplitude * (0.8 + Math.random()*0.4), // Low zone (VAL)
-           basePrice - amplitude * (0.8 + Math.random()*0.4), // Weighted extra low zone
-           basePrice + (Math.random() - 0.5) * amplitude      // Random middle/consolidation
-         ];
-         targetZone = zones[Math.floor(Math.random() * zones.length)];
+         const rand = Math.random();
          
-         // Set how long the price will "stay down" or "stay up" in this zone (100 to 400 ticks)
-         zoneTicks = Math.floor(Math.random() * 300) + 100; 
+         if (rand < 0.35) {
+             // 35% chance: Target the POC (Mean Reversion)
+             targetZone = basePrice + (Math.random() - 0.5) * 10; 
+         } else if (rand < 0.60) {
+             // 25% chance: Target somewhere in the upper half
+             targetZone = basePrice + (Math.random() * amplitude * 1.2); 
+         } else if (rand < 0.85) {
+             // 25% chance: Target somewhere in the lower half
+             targetZone = basePrice - (Math.random() * amplitude * 1.2); 
+         } else {
+             // 15% chance: Target an extreme breakout or totally random minor level
+             targetZone = basePrice + (Math.random() - 0.5) * (amplitude * 2.5);
+         }
+         
+         // Randomize duration. Short durations cause the price to abort its move 
+         // halfway (e.g. turning around at POC before reaching VAH)
+         zoneTicks = Math.floor(Math.random() * 150) + 30; 
       }
       zoneTicks--;
 
       generatorTime += 0.02;
       
-      // 2. Smoothly pull the underlying price towards the sticky target zone
-      currentPriceBase += (targetZone - currentPriceBase) * 0.015;
+      // 2. Smoothly pull the underlying price towards the dynamic target zone
+      currentPriceBase += (targetZone - currentPriceBase) * 0.025;
 
-      // 3. Add localized ranging/wobble so it isn't perfectly flat while stuck in a zone
-      const wobble = Math.sin(generatorTime * 3) * (amplitude * 0.15) + Math.cos(generatorTime * 7) * (amplitude * 0.1);
+      // 3. Add localized ranging/wobble
+      const wobble = Math.sin(generatorTime * 4) * (amplitude * 0.1) + Math.cos(generatorTime * 9) * (amplitude * 0.05);
       
       // 4. Standard tick noise
-      let noise = (Math.random() - 0.5) * 4;
+      let noise = (Math.random() - 0.5) * 5;
       
       // 5. Rare, aggressive liquidity spikes
-      if (Math.random() > 0.94) {
+      if (Math.random() > 0.95) {
         noise += (Math.random() - 0.5) * 16;
       }
       
       return currentPriceBase + wobble + noise;
     }
 
-    // Pre-fill mock data using the new sticky function
+    // Pre-fill mock data using the new random function
     for(let i = 0; i < maxHistory; i++) {
       priceHistory.push(getNextPrice());
     }
