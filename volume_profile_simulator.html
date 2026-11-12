@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Volume Profile Simulator (Irregular Price Action)</title>
+  <style>
+    :root {
+      --bg: #131722;
+      --panel: #1e222d;
+      --text: #d1d4dc;
+      --grid: #2a2e39;
+      --poc: #f23645;
+      --val-vah: #2962ff;
+      --buy: #089981;
+      --sell: #f23645;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: env(safe-area-inset-top) 10px env(safe-area-inset-bottom) 10px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 10px;
+      width: 100%;
+      max-width: 1000px; 
+    }
+
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      background: var(--panel);
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-weight: bold;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.9rem;
+    }
+
+    .pnl { color: #089981; }
+    .pnl.negative { color: #f23645; }
+
+    .main-content {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 1000px;
+      flex-grow: 1;
+      min-height: 200px;
+    }
+
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      background: var(--bg);
+      border: 1px solid var(--grid);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .transaction-panel {
+      width: 250px;
+      flex-shrink: 0;
+      background: var(--panel);
+      border: 1px solid var(--grid);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .transaction-panel h3 {
+      font-size: 0.9rem;
+      padding: 10px;
+      background: #2a2e39;
+      border-bottom: 1px solid var(--grid);
+      text-align: center;
+    }
+
+    .log-entries {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-family: monospace;
+      font-size: 0.8rem;
+    }
+
+    .log-entry {
+      background: #131722;
+      padding: 8px;
+      border-radius: 4px;
+      border-left: 3px solid var(--text);
+    }
+    .log-entry.buy { border-color: var(--buy); color: var(--buy); }
+    .log-entry.sell { border-color: var(--sell); color: var(--sell); }
+    .log-entry.close { border-color: #8b949e; color: #d1d4dc; }
+    
+    .log-time { color: #8b949e; font-size: 0.7rem; display: block; margin-bottom: 2px; }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 1000px;
+      margin-top: 10px;
+      padding-bottom: 5px;
+    }
+
+    button {
+      flex: 1;
+      padding: 15px 5px;
+      font-size: 1rem;
+      font-weight: bold;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .btn-buy { background-color: var(--buy); }
+    .btn-buy:active { background-color: #067a67; }
+    .btn-sell { background-color: var(--sell); }
+    .btn-sell:active { background-color: #c92a38; }
+    .btn-close { background-color: #434651; }
+    .btn-close:active { background-color: #2a2e39; }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .disclaimer {
+      width: 100%;
+      max-width: 1000px;
+      text-align: center;
+      font-size: 0.65rem;
+      color: #8b949e;
+      margin-top: 5px;
+      line-height: 1.3;
+    }
+
+    @media (max-width: 768px) {
+      .main-content { flex-direction: column; }
+      .transaction-panel { width: 100%; height: 120px; flex-shrink: 1; }
+      .stats { flex-direction: column; text-align: center; gap: 5px; }
+      button { padding: 10px 5px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="stats">
+      <div>Price: <span id="priceDisplay">5466.00</span></div>
+      <div>Position: <span id="posDisplay">FLAT</span></div>
+      <div>Unrealized: <span id="unrealizedDisplay">$0.00</span></div>
+      <div>Realized: <span id="pnlDisplay" class="pnl">$0.00</span></div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="canvas-container" id="canvasWrapper">
+      <canvas id="simCanvas"></canvas>
+    </div>
+    
+    <div class="transaction-panel">
+      <h3>Trade Log</h3>
+      <div class="log-entries" id="logEntries">
+        <div style="color: #8b949e; text-align: center; margin-top: 15px;">Awaiting trades...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-buy" id="btnBuy">Buy at Volume Area Low</button>
+    <button class="btn-close" id="btnClose" disabled>Exit at Point of Control</button>
+    <button class="btn-sell" id="btnSell">Sell at Volume Area High</button>
+  </div>
+
+  <div class="disclaimer">
+    Disclaimer: This simulator is for educational and demonstrative purposes only. It does not constitute financial, investment, or trading advice. Simulated market data does not represent actual market conditions, liquidity, or execution outcomes. Trading financial instruments involves a high degree of risk and may result in the loss of your entire capital.
+  </div>
+
+  <script>
+    const canvas = document.getElementById('simCanvas');
+    const wrapper = document.getElementById('canvasWrapper');
+    const ctx = canvas.getContext('2d');
+    
+    const priceDisplay = document.getElementById('priceDisplay');
+    const posDisplay = document.getElementById('posDisplay');
+    const pnlDisplay = document.getElementById('pnlDisplay');
+    const unrealizedDisplay = document.getElementById('unrealizedDisplay');
+    const btnBuy = document.getElementById('btnBuy');
+    const btnSell = document.getElementById('btnSell');
+    const btnClose = document.getElementById('btnClose');
+    const logEntries = document.getElementById('logEntries');
+
+    const basePrice = 5466; // Point of Control
+    const amplitude = 30; // Distance to Value Area High/Low
+    
+    let width, height;
+    let priceHistory = [];
+    const maxHistory = 300;
+    let time = 0;
+    let currentPrice = basePrice;
+
+    let position = 0; 
+    let entryPrice = 0;
+    let realizedPnL = 0;
+    let tradeCount = 0;
+
+    // GENERATE ORGANIC IRREGULAR PRICE
+    function getNextPrice() {
+      time += 0.015; // Overall speed
+      
+      // Combine multiple sine waves of varying frequencies to break the mechanical pattern
+      const wave1 = Math.sin(time);
+      const wave2 = Math.sin(time * 1.83) * 0.5;
+      const wave3 = Math.sin(time * 2.71) * 0.3;
+      const organicWave = (wave1 + wave2 + wave3) / 1.8; // Normalized combination
+      
+      // Standard noise (tick jitter)
+      let noise = (Math.random() - 0.5) * 4;
+      
+      // Add occasional random spikes (fat tails/sudden liquidity grabs)
+      if (Math.random() > 0.93) {
+        noise += (Math.random() - 0.5) * 15;
+      }
+      
+      return basePrice + (organicWave * amplitude) + noise;
+    }
+
+    // 1. Pre-fill mock data using the new irregular function
+    for(let i = 0; i < maxHistory; i++) {
+      priceHistory.push(getNextPrice());
+    }
+    currentPrice = priceHistory[priceHistory.length - 1];
+
+    function resize() {
+      const rect = wrapper.getBoundingClientRect();
+      if(rect.width === 0) return; 
+      
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      width = rect.width;
+      height = rect.height;
+    }
+
+    window.addEventListener('resize', resize);
+    setTimeout(resize, 0);
+
+    function getY(price) {
+      const range = amplitude * 1.5;
+      const normalized = (price - (basePrice - range)) / (range * 2);
+      return height - (normalized * height);
+    }
+    
+    function addLogEntry(type, message) {
+      if (tradeCount === 0) logEntries.innerHTML = ''; 
+      tradeCount++;
+      
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.innerHTML = `<span class="log-time">[${timeStr}]</span> ${message}`;
+      
+      logEntries.prepend(entry); 
+    }
+
+    function executeTrade(dir) {
+      if (position !== 0) return;
+      position = dir;
+      entryPrice = currentPrice;
+      
+      posDisplay.innerText = dir === 1 ? 'LONG' : 'SHORT';
+      posDisplay.style.color = dir === 1 ? 'var(--buy)' : 'var(--sell)';
+      btnBuy.disabled = true;
+      btnSell.disabled = true;
+      btnClose.disabled = false;
+      
+      const action = dir === 1 ? 'BUY' : 'SELL';
+      addLogEntry(dir === 1 ? 'buy' : 'sell', `<strong>${action}</strong> @ $${entryPrice.toFixed(2)}`);
+    }
+
+    function closeTrade() {
+      if (position === 0) return;
+      const profit = (currentPrice - entryPrice) * position;
+      realizedPnL += profit;
+      
+      const pnlStr = profit >= 0 ? `+$${profit.toFixed(2)}` : `-$${Math.abs(profit).toFixed(2)}`;
+      const pnlColor = profit >= 0 ? 'var(--buy)' : 'var(--sell)';
+      addLogEntry('close', `<strong>EXIT</strong> @ $${currentPrice.toFixed(2)}<br><span style="color: ${pnlColor}">PnL: ${pnlStr}</span>`);
+      
+      position = 0;
+      entryPrice = 0;
+      posDisplay.innerText = 'FLAT';
+      posDisplay.style.color = 'var(--text)';
+      pnlDisplay.innerText = `$${realizedPnL.toFixed(2)}`;
+      pnlDisplay.className = realizedPnL >= 0 ? 'pnl' : 'pnl negative';
+      unrealizedDisplay.innerText = `$0.00`;
+      
+      btnBuy.disabled = false;
+      btnSell.disabled = false;
+      btnClose.disabled = true;
+      btnClose.style.backgroundColor = '';
+    }
+
+    btnBuy.addEventListener('touchstart', (e) => { e.preventDefault(); executeTrade(1); });
+    btnBuy.addEventListener('click', () => executeTrade(1));
+    
+    btnSell.addEventListener('touchstart', (e) => { e.preventDefault(); executeTrade(-1); });
+    btnSell.addEventListener('click', () => executeTrade(-1));
+    
+    btnClose.addEventListener('touchstart', (e) => { e.preventDefault(); closeTrade(); });
+    btnClose.addEventListener('click', closeTrade);
+
+    function loop() {
+      if (!width || !height) {
+        requestAnimationFrame(loop);
+        return;
+      }
+
+      // Update price using the irregular wave generator
+      currentPrice = getNextPrice();
+      
+      priceHistory.push(currentPrice);
+      if (priceHistory.length > maxHistory) priceHistory.shift();
+
+      priceDisplay.innerText = currentPrice.toFixed(2);
+
+      if (position !== 0) {
+        const uPnL = (currentPrice - entryPrice) * position;
+        unrealizedDisplay.innerText = `$${uPnL.toFixed(2)}`;
+        unrealizedDisplay.style.color = uPnL >= 0 ? 'var(--buy)' : 'var(--sell)';
+        
+        if ((position === 1 && currentPrice >= basePrice) || (position === -1 && currentPrice <= basePrice)) {
+          btnClose.style.backgroundColor = '#d7a121'; 
+        } else {
+          btnClose.style.backgroundColor = '';
+        }
+      }
+
+      ctx.clearRect(0, 0, width, height);
+
+      const yPOC = getY(basePrice);
+      const yVAH = getY(basePrice + amplitude);
+      const yVAL = getY(basePrice - amplitude);
+
+      ctx.fillStyle = 'rgba(41, 98, 255, 0.15)';
+      const profileWidth = width * 0.3;
+      for (let y = 0; y < height; y += 8) {
+        const p = basePrice + ((height/2 - y) / height) * (amplitude * 3);
+        const dist = Math.abs(p - basePrice);
+        const barW = Math.max(5, profileWidth * Math.exp(-(dist * dist) / 200));
+        ctx.fillRect(0, y, barW, 6);
+      }
+
+      ctx.lineWidth = 2;
+      
+      ctx.strokeStyle = 'var(--val-vah)';
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath(); ctx.moveTo(0, yVAH); ctx.lineTo(width, yVAH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, yVAL); ctx.lineTo(width, yVAL); ctx.stroke();
+      
+      ctx.strokeStyle = 'var(--poc)';
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(0, yPOC); ctx.lineTo(width, yPOC); ctx.stroke();
+
+      ctx.fillStyle = 'var(--text)';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('VAH', width - 35, yVAH - 5);
+      ctx.fillText('VAL', width - 35, yVAL - 5);
+      ctx.fillStyle = 'var(--poc)';
+      ctx.fillText('POC', width - 35, yPOC - 5);
+
+      if (position !== 0) {
+        const yEntry = getY(entryPrice);
+        ctx.strokeStyle = position === 1 ? 'var(--buy)' : 'var(--sell)';
+        ctx.setLineDash([2, 4]);
+        ctx.beginPath(); ctx.moveTo(0, yEntry); ctx.lineTo(width, yEntry); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      ctx.beginPath();
+      ctx.strokeStyle = '#d1d4dc';
+      ctx.lineWidth = 2;
+      
+      const step = (width * 0.8) / maxHistory;
+      const startX = width * 0.1;
+
+      for (let i = 0; i < priceHistory.length; i++) {
+        const x = startX + (i * step);
+        const y = getY(priceHistory[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      const lastX = startX + ((priceHistory.length - 1) * step);
+      const lastY = getY(currentPrice);
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 5, 0, Math.PI * 2);
+      ctx.fillStyle = 'white';
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 10, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.fill();
+
+      requestAnimationFrame(loop);
+    }
+
+    setTimeout(() => {
+      requestAnimationFrame(loop);
+    }, 50);
+  </script>
+</body>
+</html>
